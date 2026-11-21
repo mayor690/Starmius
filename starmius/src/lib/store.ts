@@ -1,7 +1,5 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { categories as seedCategories } from "@/data/categories";
 import { PHONE, contact as seedContact } from "@/data/contact";
 import { site } from "@/data/site";
@@ -9,18 +7,14 @@ import { products as seedProducts } from "@/data/products";
 import { socials as seedSocials } from "@/data/socials";
 import { withDemoBanners, withDemoProducts } from "@/data/demo";
 import { SAMPLE_BANNERS, isLive } from "./banners";
+import { readDoc, writeDoc, writeUpload } from "./storage";
 import { DEFAULT_LOW_STOCK, effectiveStock } from "./stock";
 import type { Category, Contact, Product, SiteSettings, SocialLink } from "./types";
 
 /**
- * File-based store. JSON files and uploaded images live in DATA_DIR (default ./storage).
- * First run seeds from src/data/*.ts. Keep DATA_DIR on persistent disk.
+ * The shop's catalogue and settings. Saved through lib/storage.ts: files in DATA_DIR locally,
+ * a D1 database on Cloudflare. First run seeds from src/data/*.ts.
  */
-
-export const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(process.cwd(), "storage");
-export const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
-const CATALOG_FILE = path.join(DATA_DIR, "catalog.json");
-const SITE_FILE = path.join(DATA_DIR, "site.json");
 
 interface CatalogFile { categories: Category[]; products: Product[] }
 
@@ -36,27 +30,6 @@ const seedSettings = (): SiteSettings => ({
   carouselSeconds: 5,
 });
 
-async function readJson<T>(file: string, seed: () => T): Promise<T> {
-  try {
-    return JSON.parse(await fs.readFile(file, "utf8")) as T;
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") {
-      const value = seed();
-      await writeJson(file, value).catch(() => undefined);
-      return value;
-    }
-    // Unreadable file: serve the seed without overwriting what is on disk.
-    return seed();
-  }
-}
-
-async function writeJson(file: string, value: unknown): Promise<void> {
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${randomBytes(4).toString("hex")}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(value, null, 2), "utf8");
-  await fs.rename(tmp, file);
-}
-
 // Serialises writes so two saves never interleave.
 let queue: Promise<unknown> = Promise.resolve();
 function locked<T>(fn: () => Promise<T>): Promise<T> {
@@ -65,10 +38,10 @@ function locked<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-const readCatalog = () => readJson<CatalogFile>(CATALOG_FILE, () => ({ categories: seedCategories, products: withDemoProducts(seedProducts) }));
+const readCatalog = () => readDoc<CatalogFile>("catalog", () => ({ categories: seedCategories, products: withDemoProducts(seedProducts) }));
 // Older site.json files predate newer settings, so fill in defaults.
 const readSettings = async (): Promise<SiteSettings> => {
-  const merged = { ...seedSettings(), ...(await readJson<Partial<SiteSettings>>(SITE_FILE, seedSettings)) };
+  const merged = { ...seedSettings(), ...(await readDoc<Partial<SiteSettings>>("site", seedSettings)) };
   return { ...merged, shipping: { ...merged.shipping, cityRules: merged.shipping.cityRules ?? [] } };
 };
 
@@ -107,7 +80,7 @@ export async function getWhatsappBase(): Promise<string | null> {
 // Writes
 export function saveProduct(product: Product, originalSlug?: string): Promise<void> {
   return locked(async () => {
-    const cat = await readCatalog();
+    const cat = structuredClone(await readCatalog());
     if (!cat.categories.some((c) => c.id === product.categoryId)) throw new Error("Unknown category.");
     const from = originalSlug ?? product.slug;
     const idx = cat.products.findIndex((p) => p.slug === from);
@@ -116,7 +89,7 @@ export function saveProduct(product: Product, originalSlug?: string): Promise<vo
     if (idx === -1 && cat.products.some((p) => p.slug === product.slug)) throw new Error("Another product already uses that slug.");
     if (idx === -1) cat.products.push(product);
     else cat.products[idx] = product;
-    await writeJson(CATALOG_FILE, cat);
+    await writeDoc("catalog", cat);
   });
 }
 
@@ -125,7 +98,7 @@ export function deleteProduct(slug: string): Promise<void> {
     const cat = await readCatalog();
     const next = cat.products.filter((p) => p.slug !== slug);
     if (next.length === cat.products.length) throw new Error("Product not found.");
-    await writeJson(CATALOG_FILE, { ...cat, products: next });
+    await writeDoc("catalog", { ...cat, products: next });
   });
 }
 
@@ -135,17 +108,18 @@ export function saveCategories(categories: Category[]): Promise<void> {
     const ids = new Set(categories.map((c) => c.id));
     const orphaned = cat.products.filter((p) => !ids.has(p.categoryId));
     if (orphaned.length) throw new Error(`Move or delete these products before removing their category: ${orphaned.map((p) => p.name).join(", ")}`);
-    await writeJson(CATALOG_FILE, { ...cat, categories });
+    await writeDoc("catalog", { ...cat, categories });
   });
 }
 
 export function saveSettings(settings: SiteSettings): Promise<void> {
-  return locked(() => writeJson(SITE_FILE, settings));
+  return locked(() => writeDoc("site", settings));
 }
 
+const TYPES = { jpg: "image/jpeg", png: "image/png", webp: "image/webp" } as const;
+
 export async function saveUpload(data: Buffer, ext: "jpg" | "png" | "webp"): Promise<string> {
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
   const name = `${randomBytes(12).toString("hex")}.${ext}`;
-  await fs.writeFile(path.join(UPLOAD_DIR, name), data);
+  await writeUpload(name, data, TYPES[ext]);
   return `/media/${name}`;
 }

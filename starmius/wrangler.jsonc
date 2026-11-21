@@ -18,6 +18,13 @@
   "images": {
     "binding": "IMAGES"
   },
+  // Saved shop data. Wrangler creates these on the first deploy when no id is given.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "starmius-db" }
+  ],
+  "r2_buckets": [
+    { "binding": "UPLOADS", "bucket_name": "starmius-uploads" }
+  ],
   "observability": {
     "enabled": true
   }
