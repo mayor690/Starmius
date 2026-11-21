@@ -7,7 +7,7 @@ import type { Banner, Product } from "@/lib/types";
  * Applies only on first run, before anything is saved in the dashboard.
  * Set DEMO_CONTENT to false (or delete this file's use in lib/store.ts) to start with a clean shop.
  */
-export const DEMO_CONTENT = true;
+export const DEMO_CONTENT = false;
 
 const PIC = ["/demo/pic-1.png", "/demo/pic-2.png", "/demo/pic-3.png", "/demo/pic-4.png"];
 
