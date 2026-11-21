@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   adminConfigured, clientIp, endAdminSession, isAdmin, loginRetryAfter, passwordMatches,
-  recordLoginFailure, recordLoginSuccess, requireAdmin, startAdminSession,
+  recordLoginFailure, recordLoginSuccess, requireAdmin, sameOrigin, startAdminSession,
 } from "@/lib/admin-auth";
 
 const json = (body: unknown, status = 200, headers?: Record<string, string>) => NextResponse.json(body, { status, headers });
@@ -13,12 +13,7 @@ export async function GET() {
 export async function POST(req: Request) {
   if (!adminConfigured()) return json({ error: "Admin is not configured. Set ADMIN_PASSWORD (12+ characters) and AUTH_SECRET." }, 503);
 
-  // Same-origin only.
-  const origin = req.headers.get("origin");
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  let originHost = "";
-  try { originHost = origin ? new URL(origin).host : ""; } catch { /* invalid origin */ }
-  if (!originHost || originHost !== host) return json({ error: "Forbidden" }, 403);
+  if (!sameOrigin(req)) return json({ error: "Forbidden" }, 403);
 
   const ip = clientIp(req);
   const wait = loginRetryAfter(ip);

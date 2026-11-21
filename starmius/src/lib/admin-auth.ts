@@ -61,16 +61,21 @@ export async function endAdminSession(): Promise<void> {
   (await cookies()).delete(COOKIE);
 }
 
+/** True when the request's Origin matches one of the hosts this server is reached on. */
+export function sameOrigin(req: Request): boolean {
+  const origin = req.headers.get("origin");
+  if (!origin) return false;
+  let originHost = "";
+  try { originHost = new URL(origin).host; } catch { return false; }
+  const hosts = [req.headers.get("x-forwarded-host"), req.headers.get("host")];
+  try { hosts.push(new URL(req.url).host); } catch { /* ignore */ }
+  return hosts.some((h) => h && h.split(",")[0]?.trim() === originHost);
+}
+
 /** For API routes: returns an error response, or null when the owner is signed in and the request is same-origin. */
 export async function requireAdmin(req: Request): Promise<NextResponse | null> {
   if (!(await isAdmin())) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (!["GET", "HEAD"].includes(req.method)) {
-    const origin = req.headers.get("origin");
-    const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-    let originHost = "";
-    try { originHost = origin ? new URL(origin).host : ""; } catch { /* invalid origin */ }
-    if (!originHost || originHost !== host) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!["GET", "HEAD"].includes(req.method) && !sameOrigin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   return null;
 }
 

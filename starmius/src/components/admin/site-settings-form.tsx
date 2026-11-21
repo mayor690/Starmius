@@ -5,6 +5,7 @@ import { PHONE } from "@/data/contact";
 import { adminApi } from "@/lib/admin-api";
 import { BannerEditor } from "./banner-editor";
 import { ShippingEditor } from "./shipping-editor";
+import { StorageCheck } from "./storage-check";
 import type { InfoBlock, SiteSettings, SocialLink } from "@/lib/types";
 
 const ICONS = ["x", "telegram", "instagram", "facebook", "tiktok", "whatsapp", "youtube", "link"];
@@ -77,6 +78,8 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
           <BlockEditor title="Hours" value={s.hours} onChange={(hours) => setS({ ...s, hours })} />
         </div>
       </section>
+
+      <StorageCheck />
 
       <BannerEditor value={s.banners} onChange={(banners) => setS({ ...s, banners })} />
 

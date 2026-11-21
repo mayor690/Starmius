@@ -23,5 +23,9 @@ export async function POST(req: Request) {
   const buf = Buffer.from(await file.arrayBuffer());
   const ext = sniff(buf);
   if (!ext) return json({ error: "Use a JPG, PNG or WebP image." }, 415);
-  return json({ path: await saveUpload(buf, ext) });
+  try {
+    return json({ path: await saveUpload(buf, ext) });
+  } catch (e) {
+    return json({ error: e instanceof Error ? e.message : "Could not save the image." }, 500);
+  }
 }

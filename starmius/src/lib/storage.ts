@@ -25,6 +25,7 @@ export interface D1Database {
 export interface R2Bucket {
   get(key: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer>; httpMetadata?: { contentType?: string } } | null>;
   put(key: string, value: ArrayBuffer | Uint8Array, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
+  delete(key: string): Promise<unknown>;
 }
 
 export const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(process.cwd(), "storage");
@@ -132,4 +133,49 @@ export async function readUpload(name: string): Promise<Uint8Array | null> {
   } catch {
     return null;
   }
+}
+
+// ---- Health check (owner only) ---------------------------------------------
+
+export interface HealthLine { ok: boolean; detail: string }
+const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** Tries a real write and read on each store, and says in plain words what failed. */
+export async function storageHealth(): Promise<{ mode: "cloudflare" | "files"; data: HealthLine; images: HealthLine }> {
+  if (!onWorkers) {
+    try {
+      await writeFileAtomic(path.join(DATA_DIR, ".health"), String(Date.now()));
+      return { mode: "files", data: { ok: true, detail: `Saving to ${DATA_DIR}` }, images: { ok: true, detail: "Saving to the uploads folder" } };
+    } catch (e) {
+      const bad = { ok: false, detail: `The data folder is not writable: ${msg(e)}` };
+      return { mode: "files", data: bad, images: bad };
+    }
+  }
+
+  const check = async (): Promise<HealthLine> => {
+    try {
+      const db = await getDb();
+      if (!db) return { ok: false, detail: "No D1 database is connected." };
+      const stamp = String(Date.now());
+      await db.prepare("INSERT INTO docs (name, value) VALUES ('health', ?) ON CONFLICT(name) DO UPDATE SET value = excluded.value").bind(stamp).run();
+      const row = await db.prepare("SELECT value FROM docs WHERE name = 'health'").first<{ value: string }>();
+      return row?.value === stamp ? { ok: true, detail: "D1 database connected. Saving and reading works." } : { ok: false, detail: "D1 saved a value but did not return it." };
+    } catch (e) {
+      return { ok: false, detail: msg(e) };
+    }
+  };
+  const images = async (): Promise<HealthLine> => {
+    try {
+      const { UPLOADS } = await bindings();
+      if (!UPLOADS) return { ok: false, detail: "No R2 bucket is connected under the name UPLOADS. Check Settings > Bindings on the Worker in Cloudflare." };
+      await UPLOADS.put("health/ping.txt", new TextEncoder().encode("ok"));
+      const got = await UPLOADS.get("health/ping.txt");
+      await UPLOADS.delete("health/ping.txt");
+      return got ? { ok: true, detail: "R2 bucket connected. Saving and reading images works." } : { ok: false, detail: "R2 accepted the file but did not return it." };
+    } catch (e) {
+      return { ok: false, detail: msg(e) };
+    }
+  };
+  const [data, img] = await Promise.all([check(), images()]);
+  return { mode: "cloudflare", data, images: img };
 }

@@ -7,7 +7,7 @@ export async function adminApi<T = unknown>(url: string, method: "GET" | "PUT" |
     credentials: "same-origin",
   });
   const data = (await res.json().catch(() => ({}))) as { error?: string } & T;
-  if (!res.ok) throw new Error(data.error ?? "Something went wrong.");
+  if (!res.ok) throw new Error(data.error ?? `The server returned an error (${res.status}).`);
   return data;
 }
 
@@ -16,6 +16,6 @@ export async function uploadImage(file: File): Promise<string> {
   form.append("file", file);
   const res = await fetch("/api/admin/upload", { method: "POST", body: form, credentials: "same-origin" });
   const data = (await res.json().catch(() => ({}))) as { path?: string; error?: string };
-  if (!res.ok || !data.path) throw new Error(data.error ?? "Upload failed.");
+  if (!res.ok || !data.path) throw new Error(data.error ?? `Upload failed (${res.status}).`);
   return data.path;
 }

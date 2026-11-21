@@ -11,6 +11,10 @@ export async function PUT(req: Request) {
   if (denied) return denied;
   const parsed = parseSettings(await req.json().catch(() => null));
   if (!parsed.ok) return json({ error: parsed.error }, 400);
-  await saveSettings(parsed.value);
-  return json({ settings: parsed.value });
+  try {
+    await saveSettings(parsed.value);
+    return json({ settings: parsed.value });
+  } catch (e) {
+    return json({ error: e instanceof Error ? e.message : "Could not save." }, 500);
+  }
 }
