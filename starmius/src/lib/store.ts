@@ -7,6 +7,7 @@ import { PHONE, contact as seedContact } from "@/data/contact";
 import { site } from "@/data/site";
 import { products as seedProducts } from "@/data/products";
 import { socials as seedSocials } from "@/data/socials";
+import { withDemoBanners, withDemoProducts } from "@/data/demo";
 import { SAMPLE_BANNERS, isLive } from "./banners";
 import { DEFAULT_LOW_STOCK, effectiveStock } from "./stock";
 import type { Category, Contact, Product, SiteSettings, SocialLink } from "./types";
@@ -31,7 +32,7 @@ const seedSettings = (): SiteSettings => ({
   hours: seedContact.hours,
   lowStockThreshold: DEFAULT_LOW_STOCK,
   shipping: { defaultNGN: site.shipping.flatNGN, defaultUSDC: site.shipping.flatUSDC, zones: [], cityRules: [] },
-  banners: SAMPLE_BANNERS,
+  banners: withDemoBanners(SAMPLE_BANNERS),
   carouselSeconds: 5,
 });
 
@@ -64,7 +65,7 @@ function locked<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-const readCatalog = () => readJson<CatalogFile>(CATALOG_FILE, () => ({ categories: seedCategories, products: seedProducts }));
+const readCatalog = () => readJson<CatalogFile>(CATALOG_FILE, () => ({ categories: seedCategories, products: withDemoProducts(seedProducts) }));
 // Older site.json files predate newer settings, so fill in defaults.
 const readSettings = async (): Promise<SiteSettings> => {
   const merged = { ...seedSettings(), ...(await readJson<Partial<SiteSettings>>(SITE_FILE, seedSettings)) };

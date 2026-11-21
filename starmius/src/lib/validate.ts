@@ -12,7 +12,7 @@ const fail = (error: string): { ok: false; error: string } => ({ ok: false, erro
 
 export const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const SOCIAL_ICONS = ["x", "telegram", "instagram", "facebook", "tiktok", "whatsapp", "youtube", "link"];
-const IMAGE_PATH = /^\/(?:media|products)\/[A-Za-z0-9._-]+$/;
+const IMAGE_PATH = /^\/(?:media|products|demo)\/[A-Za-z0-9._-]+$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const WA_URL = /^https:\/\/wa\.me\/\d{8,15}$/;
 
