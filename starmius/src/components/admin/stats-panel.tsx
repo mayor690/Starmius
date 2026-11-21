@@ -88,7 +88,7 @@ export function StatsPanel() {
           <Ranked rows={[
             { key: "Page views", value: t.views }, { key: "Added to cart", value: r.funnel.atc },
             { key: "Started Naira payment", value: r.funnel.co }, { key: "Paid orders", value: t.orders },
-            { key: "Confirmed USDC on WhatsApp (not verified)", value: r.funnel.usdc },
+            { key: "Confirmed USDC or USDT on WhatsApp (not verified)", value: r.funnel.usdc },
           ]} />
         </Panel>
         <Panel title="Best sellers" note="By Naira sales, from paid orders">

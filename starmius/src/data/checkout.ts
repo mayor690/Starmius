@@ -19,7 +19,7 @@ export const checkoutConfig = {
     { name: "notes", label: "Notes (optional)", type: "textarea", required: false },
   ] satisfies CheckoutField[],
   usdcSteps: [
-    "Send the exact USDC amount to the address below on the chain you selected.",
+    "Send the exact amount in the token you chose (USDC or USDT) to the address below, on the chain you selected.",
     "Paste your transaction hash.",
     "Confirm on WhatsApp so we can verify and prepare your order.",
   ],
@@ -30,7 +30,7 @@ export const checkoutConfig = {
   },
   pending: {
     title: "Almost done",
-    body: "We have your USDC order details. Once we verify the transaction on chain, we will confirm your order.",
+    body: "We have your crypto order details. Once we verify the transaction on chain, we will confirm your order.",
     cta: { label: "Continue shopping", href: "/shop" },
   },
   failure: {

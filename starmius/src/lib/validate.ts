@@ -1,6 +1,6 @@
 import { round2 } from "./format";
 import { placesFor } from "@/data/locations";
-import { payments } from "@/data/payments";
+import { payments, TOKENS } from "@/data/payments";
 import { addressProblem } from "./usdc";
 import { NIGERIA_STATES, type ShippingConfig } from "./shipping";
 import { DEFAULT_LOW_STOCK, STOCK_STATUSES } from "./stock";
@@ -37,7 +37,7 @@ export function parseProduct(raw: unknown, categoryIds: string[]): Result<Produc
   const priceNGN = Number(r.priceNGN);
   const priceUSDC = Number(r.priceUSDC);
   if (!Number.isInteger(priceNGN) || priceNGN < 1 || priceNGN > 100_000_000) return fail("NGN price must be a whole number above 0.");
-  if (!Number.isFinite(priceUSDC) || priceUSDC <= 0 || priceUSDC > 1_000_000) return fail("USDC price must be above 0.");
+  if (!Number.isFinite(priceUSDC) || priceUSDC <= 0 || priceUSDC > 1_000_000) return fail("USD price must be above 0.");
 
   const stock = clean(r.stock, 20) as StockStatus;
   if (!STOCK_STATUSES.includes(stock)) return fail("Invalid stock status.");
@@ -237,9 +237,10 @@ export function parseSettings(raw: unknown): Result<SiteSettings> {
   if (evmBad) return fail(`EVM address: ${evmBad}`);
   const solBad = addressProblem("solana", solanaAddress);
   if (solBad) return fail(`Solana address: ${solBad}`);
-  const chainIds = payments.usdc.chains.map((c) => c.id);
+  const chainIds = payments.crypto.chains.map((c) => c.id);
   const disabledChains = (Array.isArray(u.disabledChains) ? u.disabledChains : []).filter((x): x is string => typeof x === "string" && chainIds.includes(x));
-  const usdc = { evmAddress, solanaAddress, disabledChains };
+  const disabledTokens = TOKENS.filter((t) => Array.isArray(u.disabledTokens) && u.disabledTokens.includes(t));
+  const usdc = { evmAddress, solanaAddress, disabledChains, disabledTokens };
 
   const shipping = parseShipping(r.shipping);
   if (!shipping.ok) return fail(shipping.error);

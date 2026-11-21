@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { checkoutConfig } from "@/data/checkout";
-import { payments, type PaymentMethod } from "@/data/payments";
+import { payments, type PaymentMethod, type Token } from "@/data/payments";
 import { site } from "@/data/site";
-import { formatUSDC } from "@/lib/format";
+import { formatToken } from "@/lib/format";
 import { NIGERIA_STATES, OUTSIDE_NIGERIA } from "@/lib/shipping";
 import { priceCart } from "@/lib/pricing";
 import { buildOrderMessage, cleanCustomer, whatsappUrl } from "@/lib/order-message";
@@ -27,13 +27,18 @@ export function CheckoutForm() {
   const { lines, hydrated, clear } = useCart();
   const { session } = useAuth();
 
-  const methods = payments.methods.filter((m) => m.enabled);
   const { usdc } = useCatalog();
-  const chains = useMemo(() => payments.usdc.chains.filter((c) => c.enabled && !usdc.disabledChains.includes(c.id)), [usdc.disabledChains]);
+  // Naira, plus each crypto token the owner has not switched off.
+  const methods = payments.methods.filter((m) => m.enabled && (m.id === "naira" || !usdc.disabledTokens.includes(m.id === "usdc" ? "USDC" : "USDT")));
 
   const [method, setMethod] = useState<PaymentMethod["id"]>(methods[0]?.id ?? "naira");
   const [values, setValues] = useState<Record<string, string>>({});
-  const [chainId, setChainId] = useState(chains[0]?.id ?? "");
+  const token: Token | null = method === "usdc" ? "USDC" : method === "usdt" ? "USDT" : null;
+  const chains = useMemo(
+    () => (token ? payments.crypto.chains.filter((c) => c.enabled && c.tokens[token] && !usdc.disabledChains.includes(c.id)) : []),
+    [token, usdc.disabledChains],
+  );
+  const [chainId, setChainId] = useState("");
   const [hash, setHash] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -51,7 +56,9 @@ export function CheckoutForm() {
   const { whatsappBase, products, shipping } = useCatalog();
   // Delivery fee depends on the chosen state, so totals are recomputed here.
   const priced = useMemo(() => priceCart(lines, products, shipping, values.state, values.city), [lines, products, shipping, values.state, values.city]);
-  const chain = useMemo(() => chains.find((c) => c.id === chainId), [chains, chainId]);
+  // A chain that does not offer the chosen token (for example Arc has no USDT) falls back to the first one that does.
+  const chain = useMemo(() => chains.find((c) => c.id === chainId) ?? chains[0], [chains, chainId]);
+  const tokenInfo = chain && token ? chain.tokens[token] : undefined;
   const address = chain ? (chain.family === "evm" ? usdc.evmAddress : usdc.solanaAddress) : "";
   const addressReady = address !== "" && !addressProblem(chain?.family ?? "evm", address);
 
@@ -86,19 +93,20 @@ export function CheckoutForm() {
 
   function confirmUsdc() {
     if (!priced.shippingKnown) { setError("Please select your state so delivery can be added."); return; }
-    if (!chain || !addressReady) { setError("USDC payment is not available right now."); return; }
+    if (!chain || !token || !addressReady) { setError("Crypto payment is not available right now."); return; }
     const valid = chain.family === "evm" ? EVM_HASH.test(hash.trim()) : SOL_SIG.test(hash.trim());
     if (!valid) { setError("Please paste a valid transaction hash for the selected chain."); return; }
     if (!whatsappBase) { setError("WhatsApp contact is not configured."); return; }
 
     const reference = `STM-${Date.now().toString(36).toUpperCase()}`;
     const message = buildOrderMessage({
-      method: "usdc",
+      method: "crypto",
+      token,
       reference,
       customer: cleanCustomer(values),
-      items: priced.items.map((i) => ({ name: i.product.name, qty: i.qty, total: formatUSDC(i.lineUSDC) })),
-      delivery: formatUSDC(priced.shippingUSDC),
-      totalPaid: formatUSDC(priced.totalUSDC),
+      items: priced.items.map((i) => ({ name: i.product.name, qty: i.qty, total: formatToken(i.lineUSDC, token) })),
+      delivery: formatToken(priced.shippingUSDC, token),
+      totalPaid: formatToken(priced.totalUSDC, token),
       chain: chain.name,
       hash: hash.trim(),
     });
@@ -107,7 +115,7 @@ export function CheckoutForm() {
     try { sessionStorage.setItem(USDC_WA_KEY, url); } catch { /* storage unavailable */ }
     window.open(url, "_blank", "noopener,noreferrer");
     clear();
-    router.push("/checkout/complete?method=usdc");
+    router.push(`/checkout/complete?method=usdc&token=${token}`);
   }
 
   function onSubmit(e: FormEvent) {
@@ -145,7 +153,7 @@ export function CheckoutForm() {
 
         <section aria-labelledby="payment" className="flex flex-col gap-6">
           <h2 id="payment" className="eyebrow">Payment</h2>
-          <div className="grid gap-4 sm:grid-cols-2" role="radiogroup" aria-labelledby="payment">
+          <div className="grid gap-4 sm:grid-cols-3" role="radiogroup" aria-labelledby="payment">
             {methods.map((m) => (
               <label key={m.id} className={`cursor-pointer border p-5 transition-colors ${method === m.id ? "border-champagne-600 bg-ivory-100" : "border-champagne-300/60 hover:border-champagne-500"}`}>
                 <input type="radio" name="method" value={m.id} checked={method === m.id} onChange={() => { setMethod(m.id); setError(""); }} className="sr-only" />
@@ -155,20 +163,20 @@ export function CheckoutForm() {
             ))}
           </div>
 
-          {method === "usdc" && (
+          {token && (
             <div className="flex flex-col gap-6 border border-champagne-300/50 bg-ivory-100/60 p-6">
               <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-muted">
                 {checkoutConfig.usdcSteps.map((s) => <li key={s}>{s}</li>)}
               </ol>
               <div>
                 <label htmlFor="chain" className="field-label">Chain</label>
-                <select id="chain" className="field" value={chainId} onChange={(e) => setChainId(e.target.value)}>
+                <select id="chain" className="field" value={chain?.id ?? ""} onChange={(e) => setChainId(e.target.value)}>
                   {chains.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div>
                 <p className="field-label">Amount</p>
-                <p className="mt-1 font-display text-2xl">{formatUSDC(priced.totalUSDC)}</p>
+                <p className="mt-1 font-display text-2xl">{formatToken(priced.totalUSDC, token)}</p>
                 {!priced.shippingKnown && <p className="mt-1 text-xs text-muted">Select your state above to add delivery to this amount.</p>}
               </div>
               <div>
@@ -184,7 +192,7 @@ export function CheckoutForm() {
                 ) : (
                   <p className="mt-2 text-sm text-muted">This chain is not available right now.</p>
                 )}
-                {chain && addressReady && <p className="mt-2 break-all text-xs text-muted">USDC token: {chain.contract}</p>}
+                {chain && addressReady && <p className="mt-2 break-all text-xs text-muted">{token} token: {tokenInfo?.contract}</p>}
               </div>
               <div>
                 <label htmlFor="hash" className="field-label">Transaction hash</label>
@@ -204,7 +212,7 @@ export function CheckoutForm() {
         </ul>
         <OrderTotals priced={priced} />
         {error && <p role="alert" className="mt-6 text-sm text-red-800">{error}</p>}
-        <button type="submit" className="btn btn-primary mt-8 w-full" disabled={busy || (method === "usdc" && !addressReady)}>
+        <button type="submit" className="btn btn-primary mt-8 w-full" disabled={busy || (token !== null && !addressReady)}>
           {busy ? "Please wait" : method === "naira" ? "Pay in Naira" : "Confirm on WhatsApp"}
         </button>
         <p className="mt-5 text-center text-xs leading-relaxed text-muted">{site.shipping.note}</p>

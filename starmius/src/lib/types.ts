@@ -1,3 +1,4 @@
+import type { Token } from "@/data/payments";
 import type { ShippingConfig } from "./shipping";
 
 export type StockStatus = "in_stock" | "low_stock" | "preorder" | "out_of_stock";
@@ -39,13 +40,15 @@ export interface SocialLink {
   showInContact?: boolean;
 }
 
-/** Where USDC payments are received. Chain definitions and token contracts stay in data/payments.ts. */
+/** Where crypto (USDC and USDT) payments are received. Chain definitions and token contracts stay in data/payments.ts. */
 export interface UsdcSettings {
   /** One address that works on every EVM chain. Empty until you set it. */
   evmAddress: string;
   solanaAddress: string;
   /** Chain ids switched off at checkout. */
   disabledChains: string[];
+  /** Tokens switched off at checkout (USDC or USDT). */
+  disabledTokens: Token[];
 }
 
 export interface ContactChannel {

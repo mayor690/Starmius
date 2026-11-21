@@ -1,4 +1,4 @@
-import { payments } from "@/data/payments";
+import { payments, TOKENS } from "@/data/payments";
 import type { UsdcSettings } from "./types";
 
 export const EVM_ADDRESS = /^0x[a-fA-F0-9]{40}$/;
@@ -15,17 +15,22 @@ export function addressProblem(kind: "evm" | "solana", value: string): string {
   } else if (!SOLANA_ADDRESS.test(value)) {
     return "A Solana address is 32 to 44 letters and numbers.";
   }
-  // The most common mistake: pasting the USDC token contract instead of your own wallet.
-  const token = payments.usdc.chains.find((c) => c.contract.toLowerCase() === value.toLowerCase());
-  return token ? `That is the USDC token contract on ${token.name}, not a wallet. Use your own wallet address.` : "";
+  // The most common mistake: pasting a token contract instead of your own wallet.
+  for (const c of payments.crypto.chains) {
+    for (const t of TOKENS) {
+      if (c.tokens[t]?.contract.toLowerCase() === value.toLowerCase()) return `That is the ${t} token contract on ${c.name}, not a wallet. Use your own wallet address.`;
+    }
+  }
+  return "";
 }
 
 /** The seed from data/payments.ts, ignoring its REPLACE_ placeholders. */
 export const seedUsdc = (): UsdcSettings => {
-  const a = payments.usdc.receivingAddresses;
+  const a = payments.crypto.receivingAddresses;
   return {
     evmAddress: a.evm.startsWith("REPLACE") ? "" : a.evm,
     solanaAddress: a.solana.startsWith("REPLACE") ? "" : a.solana,
-    disabledChains: payments.usdc.chains.filter((c) => !c.enabled).map((c) => c.id),
+    disabledChains: payments.crypto.chains.filter((c) => !c.enabled).map((c) => c.id),
+    disabledTokens: [],
   };
 };

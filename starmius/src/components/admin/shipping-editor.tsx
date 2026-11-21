@@ -37,7 +37,7 @@ export function ShippingEditor({ value, onChange }: { value: ShippingConfig; onC
           <input id="def-ngn" type="number" min={0} step={1} className="field" value={value.defaultNGN} onChange={(e) => onChange({ ...value, defaultNGN: num(e.target.value) })} />
         </div>
         <div>
-          <label className="field-label" htmlFor="def-usdc">Default fee (USDC)</label>
+          <label className="field-label" htmlFor="def-usdc">Default fee (USD)</label>
           <input id="def-usdc" type="number" min={0} step="any" className="field" value={value.defaultUSDC} onChange={(e) => onChange({ ...value, defaultUSDC: num(e.target.value) })} />
         </div>
       </div>
@@ -55,7 +55,7 @@ export function ShippingEditor({ value, onChange }: { value: ShippingConfig; onC
                 <input id={`z-f-${i}`} type="number" min={0} step={1} className="field" value={z.feeNGN} onChange={(e) => patchZone(i, { feeNGN: num(e.target.value) })} />
               </div>
               <div>
-                <label className="field-label" htmlFor={`z-u-${i}`}>Fee (USDC)</label>
+                <label className="field-label" htmlFor={`z-u-${i}`}>Fee (USD)</label>
                 <input id={`z-u-${i}`} type="number" min={0} step="any" className="field" value={z.feeUSDC} onChange={(e) => patchZone(i, { feeUSDC: num(e.target.value) })} />
               </div>
               <button type="button" className="self-end pb-2 text-xs font-medium uppercase tracking-[0.2em] text-red-800" onClick={() => onChange({ ...value, zones: value.zones.filter((_, n) => n !== i) })}>Remove</button>
@@ -106,7 +106,7 @@ export function ShippingEditor({ value, onChange }: { value: ShippingConfig; onC
               <input id={`cr-n-${i}`} type="number" min={0} step={1} className="field" value={r.feeNGN} onChange={(e) => patchRule(i, { feeNGN: num(e.target.value) })} />
             </div>
             <div>
-              <label className="field-label" htmlFor={`cr-u-${i}`}>Fee (USDC)</label>
+              <label className="field-label" htmlFor={`cr-u-${i}`}>Fee (USD)</label>
               <input id={`cr-u-${i}`} type="number" min={0} step="any" className="field" value={r.feeUSDC} onChange={(e) => patchRule(i, { feeUSDC: num(e.target.value) })} />
             </div>
             <button type="button" className="self-end pb-2 text-xs font-medium uppercase tracking-[0.2em] text-red-800" onClick={() => onChange({ ...value, cityRules: value.cityRules.filter((_, n) => n !== i) })}>Remove</button>

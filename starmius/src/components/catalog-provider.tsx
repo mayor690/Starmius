@@ -14,7 +14,7 @@ interface CatalogValue {
   usdc: UsdcSettings;
 }
 
-const CatalogContext = createContext<CatalogValue>({ products: [], whatsappBase: null, shipping: { defaultNGN: 0, defaultUSDC: 0, zones: [], cityRules: [] }, carouselMs: 5000, usdc: { evmAddress: "", solanaAddress: "", disabledChains: [] } });
+const CatalogContext = createContext<CatalogValue>({ products: [], whatsappBase: null, shipping: { defaultNGN: 0, defaultUSDC: 0, zones: [], cityRules: [] }, carouselMs: 5000, usdc: { evmAddress: "", solanaAddress: "", disabledChains: [], disabledTokens: [] } });
 
 export function CatalogProvider({ products, whatsappBase, shipping, carouselMs, usdc, children }: CatalogValue & { children: ReactNode }) {
   return <CatalogContext.Provider value={{ products, whatsappBase, shipping, carouselMs, usdc }}>{children}</CatalogContext.Provider>;

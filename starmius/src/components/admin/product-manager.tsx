@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { adminApi } from "@/lib/admin-api";
-import { formatNGN, formatUSDC } from "@/lib/format";
+import { formatNGN, formatUSD } from "@/lib/format";
 import type { Category, Product } from "@/lib/types";
 import { ProductForm } from "./product-form";
 
@@ -59,7 +59,7 @@ export function ProductManager({ products, categories, onChange }: { products: P
               <p className="font-display text-xl font-medium">{p.name}</p>
               <p className="text-xs tracking-wider text-muted">{catName(p.categoryId)} &middot; {STOCK[p.stock]}{typeof p.quantity === "number" ? ` (${p.quantity} left)` : ""}{p.featured ? " \u00b7 Featured" : ""}</p>
             </div>
-            <p className="text-sm">{formatNGN(p.priceNGN)} <span className="text-champagne-700">/ {formatUSDC(p.priceUSDC)}</span></p>
+            <p className="text-sm">{formatNGN(p.priceNGN)} <span className="text-champagne-700">/ {formatUSD(p.priceUSDC)}</span></p>
             <div className="flex gap-5 text-xs font-medium uppercase tracking-[0.2em]">
               <button type="button" className="text-champagne-700 hover:text-ink" onClick={() => { setNotice(""); setEditing(p); }}>Edit</button>
               <button type="button" className="text-red-800 hover:text-red-950" onClick={() => void remove(p)}>Delete</button>

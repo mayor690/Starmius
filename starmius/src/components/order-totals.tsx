@@ -1,4 +1,4 @@
-import { formatNGN, formatUSDC } from "@/lib/format";
+import { formatNGN, formatUSD } from "@/lib/format";
 import type { PricedCart } from "@/lib/pricing";
 
 function Row({ label, ngn, usdc, strong = false }: { label: string; ngn: number; usdc: number; strong?: boolean }) {
@@ -7,7 +7,7 @@ function Row({ label, ngn, usdc, strong = false }: { label: string; ngn: number;
       <dt className={`text-xs uppercase tracking-[0.25em] ${strong ? "text-ink" : "text-muted"}`}>{label}</dt>
       <dd className="text-right">
         <span className={`block font-display ${strong ? "text-2xl" : "text-lg"}`}>{formatNGN(ngn)}</span>
-        <span className="block text-xs tracking-wider text-champagne-700">{formatUSDC(usdc)}</span>
+        <span className="block text-xs tracking-wider text-champagne-700">{formatUSD(usdc)}</span>
       </dd>
     </div>
   );

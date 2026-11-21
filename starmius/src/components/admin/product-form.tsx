@@ -92,7 +92,7 @@ export function ProductForm({ product, categories, onSaved, onCancel }: { produc
         </div>
         {text("quantity", "Items left (optional)", { type: "number", hint: "Leave empty to not count. 0 marks it out of stock. A low count shows \"Only N left\"." })}
         {text("priceNGN", "Price (NGN)", { type: "number", required: true, hint: "Whole naira, e.g. 18000" })}
-        {text("priceUSDC", "Price (USDC)", { type: "number", required: true, hint: "e.g. 12 or 12.50" })}
+        {text("priceUSDC", "Price (USD)", { type: "number", required: true, hint: "Dollars, e.g. 12 or 12.50. Customers pay this in USDC or USDT." })}
         {text("size", "Size (optional)", { hint: "e.g. 50 ml" })}
         <label className="flex items-center gap-3 self-end pb-2 text-sm">
           <input type="checkbox" checked={f.featured} onChange={(e) => set("featured", e.target.checked)} className="size-4 accent-[#6b4f2a]" />
