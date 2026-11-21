@@ -8,6 +8,7 @@ import { socials as seedSocials } from "@/data/socials";
 import { withDemoBanners, withDemoProducts } from "@/data/demo";
 import { SAMPLE_BANNERS, isLive } from "./banners";
 import { readDoc, writeDoc, writeUpload } from "./storage";
+import { seedUsdc } from "./usdc";
 import { DEFAULT_LOW_STOCK, effectiveStock } from "./stock";
 import type { Category, Contact, Product, SiteSettings, SocialLink } from "./types";
 
@@ -28,6 +29,7 @@ const seedSettings = (): SiteSettings => ({
   shipping: { defaultNGN: site.shipping.flatNGN, defaultUSDC: site.shipping.flatUSDC, zones: [], cityRules: [] },
   banners: withDemoBanners(SAMPLE_BANNERS),
   carouselSeconds: 5,
+  usdc: seedUsdc(),
 });
 
 // Serialises writes so two saves never interleave.
@@ -42,7 +44,7 @@ const readCatalog = () => readDoc<CatalogFile>("catalog", () => ({ categories: s
 // Older site.json files predate newer settings, so fill in defaults.
 const readSettings = async (): Promise<SiteSettings> => {
   const merged = { ...seedSettings(), ...(await readDoc<Partial<SiteSettings>>("site", seedSettings)) };
-  return { ...merged, shipping: { ...merged.shipping, cityRules: merged.shipping.cityRules ?? [] } };
+  return { ...merged, shipping: { ...merged.shipping, cityRules: merged.shipping.cityRules ?? [] }, usdc: { ...seedUsdc(), ...(merged.usdc ?? {}) } };
 };
 
 // Reads
@@ -57,6 +59,7 @@ export const getCategories = async () => (await readCatalog()).categories;
 export const getSettings = readSettings;
 export const getActiveBanners = async () => (await readSettings()).banners.filter((b) => isLive(b));
 export const getCarouselSeconds = async () => (await readSettings()).carouselSeconds;
+export const getUsdc = async () => (await readSettings()).usdc;
 export const getShipping = async () => (await readSettings()).shipping;
 export const getSocials = async (): Promise<SocialLink[]> => (await readSettings()).socials;
 

@@ -6,6 +6,7 @@ import { adminApi } from "@/lib/admin-api";
 import { BannerEditor } from "./banner-editor";
 import { ShippingEditor } from "./shipping-editor";
 import { StorageCheck } from "./storage-check";
+import { UsdcEditor } from "./usdc-editor";
 import type { InfoBlock, SiteSettings, SocialLink } from "@/lib/types";
 
 const ICONS = ["x", "telegram", "instagram", "facebook", "tiktok", "whatsapp", "youtube", "link"];
@@ -82,6 +83,8 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
       <StorageCheck />
 
       <BannerEditor value={s.banners} onChange={(banners) => setS({ ...s, banners })} />
+
+      <UsdcEditor value={s.usdc} onChange={(usdc) => setS({ ...s, usdc })} />
 
       <ShippingEditor value={s.shipping} onChange={(shipping) => setS({ ...s, shipping })} />
 

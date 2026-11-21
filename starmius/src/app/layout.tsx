@@ -9,7 +9,7 @@ import { CatalogProvider } from "@/components/catalog-provider";
 import { Analytics } from "@/components/analytics";
 import { BannerSlot } from "@/components/banner-slot";
 import { HideOnAdmin } from "@/components/hide-on-admin";
-import { getAllProducts, getCarouselSeconds, getShipping, getWhatsappBase } from "@/lib/store";
+import { getAllProducts, getCarouselSeconds, getShipping, getUsdc, getWhatsappBase } from "@/lib/store";
 import "./globals.css";
 
 const display = Cormorant_Garamond({ subsets: ["latin"], weight: ["300", "400", "500"], variable: "--font-cormorant", display: "swap" });
@@ -28,12 +28,12 @@ export const viewport: Viewport = { themeColor: "#fdfbf7" };
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [products, whatsappBase, shipping, carouselSeconds] = await Promise.all([getAllProducts(), getWhatsappBase(), getShipping(), getCarouselSeconds()]);
+  const [products, whatsappBase, shipping, carouselSeconds, usdc] = await Promise.all([getAllProducts(), getWhatsappBase(), getShipping(), getCarouselSeconds(), getUsdc()]);
   return (
     <html lang="en" className={`${display.variable} ${sans.variable}`}>
       <body>
         <AuthProvider>
-          <CatalogProvider products={products} whatsappBase={whatsappBase} shipping={shipping} carouselMs={carouselSeconds * 1000}>
+          <CatalogProvider products={products} whatsappBase={whatsappBase} shipping={shipping} carouselMs={carouselSeconds * 1000} usdc={usdc}>
             <CartProvider>
               <Analytics />
               <HideOnAdmin><BannerSlot placement="top" /><Header /></HideOnAdmin>

@@ -1,5 +1,7 @@
 import { round2 } from "./format";
 import { placesFor } from "@/data/locations";
+import { payments } from "@/data/payments";
+import { addressProblem } from "./usdc";
 import { NIGERIA_STATES, type ShippingConfig } from "./shipping";
 import { DEFAULT_LOW_STOCK, STOCK_STATUSES } from "./stock";
 import { BANNER_PLACEMENT_LABELS, BANNER_TONE_LABELS, BANNER_TYPE_LABELS, MAX_BANNERS } from "./banners";
@@ -228,6 +230,17 @@ export function parseSettings(raw: unknown): Result<SiteSettings> {
   const carouselSeconds = r.carouselSeconds === undefined ? 5 : Number(r.carouselSeconds);
   if (!Number.isInteger(carouselSeconds) || (carouselSeconds !== 0 && (carouselSeconds < 2 || carouselSeconds > 30))) return fail("Carousel speed must be 0 (off) or from 2 to 30 seconds.");
 
+  const u = obj(r.usdc);
+  const evmAddress = clean(u.evmAddress, 60);
+  const solanaAddress = clean(u.solanaAddress, 60);
+  const evmBad = addressProblem("evm", evmAddress);
+  if (evmBad) return fail(`EVM address: ${evmBad}`);
+  const solBad = addressProblem("solana", solanaAddress);
+  if (solBad) return fail(`Solana address: ${solBad}`);
+  const chainIds = payments.usdc.chains.map((c) => c.id);
+  const disabledChains = (Array.isArray(u.disabledChains) ? u.disabledChains : []).filter((x): x is string => typeof x === "string" && chainIds.includes(x));
+  const usdc = { evmAddress, solanaAddress, disabledChains };
+
   const shipping = parseShipping(r.shipping);
   if (!shipping.ok) return fail(shipping.error);
   const banners = parseBanners(r.banners ?? []);
@@ -235,6 +248,6 @@ export function parseSettings(raw: unknown): Result<SiteSettings> {
 
   return {
     ok: true,
-    value: { carouselSeconds, shipping: shipping.value, banners: banners.value, lowStockThreshold: threshold, socials, email, brandHandle: clean(r.brandHandle, 60), address: block(r.address), hours: block(r.hours) },
+    value: { usdc, carouselSeconds, shipping: shipping.value, banners: banners.value, lowStockThreshold: threshold, socials, email, brandHandle: clean(r.brandHandle, 60), address: block(r.address), hours: block(r.hours) },
   };
 }

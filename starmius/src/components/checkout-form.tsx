@@ -12,6 +12,7 @@ import { priceCart } from "@/lib/pricing";
 import { buildOrderMessage, cleanCustomer, whatsappUrl } from "@/lib/order-message";
 import { USDC_WA_KEY } from "./whatsapp-notify";
 import { track } from "@/lib/track";
+import { addressProblem } from "@/lib/usdc";
 import { useAuth } from "./auth-provider";
 import { useCart } from "./cart-provider";
 import { useCatalog } from "./catalog-provider";
@@ -27,7 +28,8 @@ export function CheckoutForm() {
   const { session } = useAuth();
 
   const methods = payments.methods.filter((m) => m.enabled);
-  const chains = payments.usdc.chains.filter((c) => c.enabled);
+  const { usdc } = useCatalog();
+  const chains = useMemo(() => payments.usdc.chains.filter((c) => c.enabled && !usdc.disabledChains.includes(c.id)), [usdc.disabledChains]);
 
   const [method, setMethod] = useState<PaymentMethod["id"]>(methods[0]?.id ?? "naira");
   const [values, setValues] = useState<Record<string, string>>({});
@@ -50,8 +52,8 @@ export function CheckoutForm() {
   // Delivery fee depends on the chosen state, so totals are recomputed here.
   const priced = useMemo(() => priceCart(lines, products, shipping, values.state, values.city), [lines, products, shipping, values.state, values.city]);
   const chain = useMemo(() => chains.find((c) => c.id === chainId), [chains, chainId]);
-  const address = chain ? payments.usdc.receivingAddresses[chain.family] : "";
-  const addressReady = address !== "" && !address.startsWith("REPLACE");
+  const address = chain ? (chain.family === "evm" ? usdc.evmAddress : usdc.solanaAddress) : "";
+  const addressReady = address !== "" && !addressProblem(chain?.family ?? "evm", address);
 
   if (!hydrated) return <p className="py-24 text-center text-muted">Loading</p>;
   if (!priced.items.length) {

@@ -39,6 +39,15 @@ export interface SocialLink {
   showInContact?: boolean;
 }
 
+/** Where USDC payments are received. Chain definitions and token contracts stay in data/payments.ts. */
+export interface UsdcSettings {
+  /** One address that works on every EVM chain. Empty until you set it. */
+  evmAddress: string;
+  solanaAddress: string;
+  /** Chain ids switched off at checkout. */
+  disabledChains: string[];
+}
+
 export interface ContactChannel {
   id: string;
   label: string;
@@ -70,6 +79,7 @@ export interface SiteSettings {
   banners: Banner[];
   /** Seconds between pictures in carousels. 0 turns auto-advance off. */
   carouselSeconds: number;
+  usdc: UsdcSettings;
 }
 
 export interface Contact {
