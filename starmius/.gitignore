@@ -7,3 +7,9 @@ next-env.d.ts
 
 # Owner-editable catalogue, settings and uploaded images (do not commit)
 /storage
+
+# Cloudflare / OpenNext
+.open-next
+.wrangler
+.dev.vars
+cloudflare-env.d.ts
