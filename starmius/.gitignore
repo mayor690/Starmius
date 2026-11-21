@@ -1,0 +1,9 @@
+node_modules
+.next
+.env
+.env.local
+next-env.d.ts
+*.tsbuildinfo
+
+# Owner-editable catalogue, settings and uploaded images (do not commit)
+/storage
