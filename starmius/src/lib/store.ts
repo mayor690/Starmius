@@ -7,6 +7,7 @@ import { PHONE, contact as seedContact } from "@/data/contact";
 import { site } from "@/data/site";
 import { products as seedProducts } from "@/data/products";
 import { socials as seedSocials } from "@/data/socials";
+import { SAMPLE_BANNERS, isLive } from "./banners";
 import { DEFAULT_LOW_STOCK, effectiveStock } from "./stock";
 import type { Category, Contact, Product, SiteSettings, SocialLink } from "./types";
 
@@ -30,6 +31,8 @@ const seedSettings = (): SiteSettings => ({
   hours: seedContact.hours,
   lowStockThreshold: DEFAULT_LOW_STOCK,
   shipping: { defaultNGN: site.shipping.flatNGN, defaultUSDC: site.shipping.flatUSDC, zones: [], cityRules: [] },
+  banners: SAMPLE_BANNERS,
+  carouselSeconds: 5,
 });
 
 async function readJson<T>(file: string, seed: () => T): Promise<T> {
@@ -78,6 +81,8 @@ export async function getAllProducts(): Promise<Product[]> {
 }
 export const getCategories = async () => (await readCatalog()).categories;
 export const getSettings = readSettings;
+export const getActiveBanners = async () => (await readSettings()).banners.filter((b) => isLive(b));
+export const getCarouselSeconds = async () => (await readSettings()).carouselSeconds;
 export const getShipping = async () => (await readSettings()).shipping;
 export const getSocials = async (): Promise<SocialLink[]> => (await readSettings()).socials;
 

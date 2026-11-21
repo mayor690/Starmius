@@ -4,6 +4,7 @@ import { site } from "@/data/site";
 import { getFeaturedProducts } from "@/lib/products";
 import { ProductGrid } from "@/components/product-card";
 import { SectionHeading } from "@/components/section-heading";
+import { BannerSlot } from "@/components/banner-slot";
 import { Sparkle } from "@/components/sparkle";
 
 export default async function HomePage() {
@@ -31,6 +32,8 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <BannerSlot placement="home" className="mx-auto mt-16 max-w-7xl px-6 lg:px-10" />
 
       <section className="mx-auto max-w-7xl px-6 py-28 lg:px-10 lg:py-40">
         <SectionHeading eyebrow={site.featured.eyebrow} title={site.featured.title} intro={site.featured.intro} />

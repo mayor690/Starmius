@@ -39,7 +39,7 @@ export default async function ProductPage({ params }: Props) {
 
       <div className="grid gap-14 lg:grid-cols-2 lg:gap-24">
         <div className="group">
-          <ProductVisual product={product} className="aspect-[4/5]" priority sizes="(min-width: 1024px) 50vw, 100vw" />
+          <ProductVisual product={product} className="aspect-[4/5]" carousel priority sizes="(min-width: 1024px) 50vw, 100vw" />
         </div>
         <div className="flex flex-col gap-8 lg:py-6">
           <div className="flex flex-col gap-4">

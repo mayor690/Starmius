@@ -7,11 +7,13 @@ import type { Category, Product, SiteSettings } from "@/lib/types";
 import { CategoryManager } from "./category-manager";
 import { ProductManager } from "./product-manager";
 import { SiteSettingsForm } from "./site-settings-form";
+import { StatsPanel } from "./stats-panel";
 
-type Tab = "products" | "categories" | "site";
+type Tab = "products" | "categories" | "stats" | "site";
 const TABS: { id: Tab; label: string }[] = [
   { id: "products", label: "Products" },
   { id: "categories", label: "Categories" },
+  { id: "stats", label: "Stats" },
   { id: "site", label: "Settings" },
 ];
 
@@ -52,6 +54,7 @@ export function AdminApp({ initialProducts, initialCategories, initialSettings }
       <div className="mt-10">
         {tab === "products" && <ProductManager products={products} categories={categories} onChange={setProducts} />}
         {tab === "categories" && <CategoryManager categories={categories} products={products} onChange={setCategories} />}
+        {tab === "stats" && <StatsPanel />}
         {tab === "site" && <SiteSettingsForm initial={initialSettings} />}
       </div>
     </div>

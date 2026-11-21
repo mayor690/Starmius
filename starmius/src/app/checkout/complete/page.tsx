@@ -5,6 +5,7 @@ import { ClearCart } from "@/components/clear-cart";
 import { WhatsAppNotify } from "@/components/whatsapp-notify";
 import { getAllProducts, getShipping, getWhatsappBase } from "@/lib/store";
 import type { ShippingConfig } from "@/lib/shipping";
+import { recordPaidOrder } from "@/lib/stats";
 import type { Product } from "@/lib/types";
 import { priceCart } from "@/lib/pricing";
 import { buildOrderMessage, cleanCustomer, formatNGN, whatsappUrl } from "@/lib/order-message";
@@ -70,6 +71,9 @@ export default async function CompletePage({ searchParams }: { searchParams: Pro
     const verified = await verifyPaystack(reference);
     if (verified) {
       outcome = "success";
+      // Counts toward the Stats page. Safe to repeat: each reference is stored once.
+      const c = cleanCustomer(verified.customer);
+      await recordPaidOrder({ ref: reference, amountNGN: verified.amountNGN, shippingNGN: verified.shippingNGN, state: c.state, city: c.city, items: verified.items }).catch(() => undefined);
       waUrl = nairaWhatsappUrl(reference, verified, await getAllProducts(), await getShipping(), await getWhatsappBase());
     }
   } else if (q.method === "usdc") outcome = "pending";

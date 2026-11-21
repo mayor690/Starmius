@@ -11,6 +11,7 @@ import { NIGERIA_STATES, OUTSIDE_NIGERIA } from "@/lib/shipping";
 import { priceCart } from "@/lib/pricing";
 import { buildOrderMessage, cleanCustomer, whatsappUrl } from "@/lib/order-message";
 import { USDC_WA_KEY } from "./whatsapp-notify";
+import { track } from "@/lib/track";
 import { useAuth } from "./auth-provider";
 import { useCart } from "./cart-provider";
 import { useCatalog } from "./catalog-provider";
@@ -110,6 +111,7 @@ export function CheckoutForm() {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
+    track({ t: method === "naira" ? "co" : "usdc" });
     if (method === "naira") void payNaira();
     else confirmUsdc();
   }

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { PHONE } from "@/data/contact";
 import { adminApi } from "@/lib/admin-api";
+import { BannerEditor } from "./banner-editor";
 import { ShippingEditor } from "./shipping-editor";
 import type { InfoBlock, SiteSettings, SocialLink } from "@/lib/types";
 
@@ -77,7 +78,18 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
         </div>
       </section>
 
+      <BannerEditor value={s.banners} onChange={(banners) => setS({ ...s, banners })} />
+
       <ShippingEditor value={s.shipping} onChange={(shipping) => setS({ ...s, shipping })} />
+
+      <section className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+        <h2 className="font-display text-3xl font-medium sm:col-span-2">Picture carousels</h2>
+        <div>
+          <label className="field-label" htmlFor="carousel">Seconds between pictures</label>
+          <input id="carousel" type="number" min={0} max={30} className="field" value={s.carouselSeconds} onChange={(e) => setS({ ...s, carouselSeconds: Number(e.target.value) })} />
+        </div>
+        <p className="self-end text-xs leading-relaxed text-muted">Applies to every carousel: products, hot sale, promo and pop-up cards. Use 2 to 30 seconds, or 0 to turn auto-advance off (the dots still work). It pauses while a visitor hovers over a card.</p>
+      </section>
 
       <section className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
         <h2 className="font-display text-3xl font-medium sm:col-span-2">Stock</h2>

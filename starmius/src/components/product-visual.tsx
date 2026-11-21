@@ -1,10 +1,21 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { Product } from "@/lib/types";
+import { ImageCarousel } from "./image-carousel";
 
-export function ProductVisual({ product, className = "", priority = false, sizes = "(min-width: 1024px) 30vw, 50vw" }: { product: Product; className?: string; priority?: boolean; sizes?: string }) {
+export function ProductVisual({ product, className = "", priority = false, sizes = "(min-width: 1024px) 30vw, 50vw", carousel = false, href }: {
+  product: Product; className?: string; priority?: boolean; sizes?: string;
+  /** Show a dot-switched carousel when the product has 2 to 4 pictures. */
+  carousel?: boolean;
+  /** Makes the picture a link to this page. */
+  href?: string;
+}) {
   const src = product.images[0];
   const soldOut = product.stock === "out_of_stock";
-  return (
+  if (carousel && product.images.length >= 2) {
+    return <ImageCarousel images={product.images.slice(0, 4)} name={product.name} href={href} soldOut={soldOut} sizes={sizes} priority={priority} className={className} />;
+  }
+  const body = (
     <div className={`relative overflow-hidden bg-gradient-to-br from-ivory-100 via-ivory-200 to-champagne-200/60 ${className}`}>
       {src ? (
         <Image src={src} alt={product.name} fill sizes={sizes} priority={priority} unoptimized={src.startsWith("/media/")} className={`object-cover transition-transform duration-700 group-hover:scale-[1.03] ${soldOut ? "opacity-40 grayscale" : ""}`} />
@@ -26,4 +37,5 @@ export function ProductVisual({ product, className = "", priority = false, sizes
       )}
     </div>
   );
+  return href ? <Link href={href} className="block">{body}</Link> : body;
 }

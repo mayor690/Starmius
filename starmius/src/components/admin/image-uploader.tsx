@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { uploadImage } from "@/lib/admin-api";
 
-export function ImageUploader({ images, onChange }: { images: string[]; onChange: (next: string[]) => void }) {
+export function ImageUploader({ images, onChange, max = 8, label = "Images (first one is the main image)", hint = "Portrait photos (4:5) look best." }: { images: string[]; onChange: (next: string[]) => void; max?: number; label?: string; hint?: string }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -18,7 +18,7 @@ export function ImageUploader({ images, onChange }: { images: string[]; onChange
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed.");
     }
-    if (added.length) onChange([...images, ...added].slice(0, 8));
+    if (added.length) onChange([...images, ...added].slice(0, max));
     setBusy(false);
     if (input.current) input.current.value = "";
   }
@@ -33,7 +33,7 @@ export function ImageUploader({ images, onChange }: { images: string[]; onChange
 
   return (
     <div>
-      <p className="field-label">Images (first one is the main image)</p>
+      <p className="field-label">{label}</p>
       <ul className="mt-3 flex flex-wrap gap-4">
         {images.map((src, i) => (
           <li key={src} className="w-28">
@@ -46,7 +46,7 @@ export function ImageUploader({ images, onChange }: { images: string[]; onChange
             </div>
           </li>
         ))}
-        {images.length < 8 && (
+        {images.length < max && (
           <li className="w-28">
             <button type="button" onClick={() => input.current?.click()} disabled={busy}
               className="grid aspect-[4/5] w-full place-items-center border border-dashed border-champagne-600 text-xs uppercase tracking-[0.2em] text-champagne-700 hover:bg-ivory-100 disabled:opacity-50">
@@ -56,7 +56,7 @@ export function ImageUploader({ images, onChange }: { images: string[]; onChange
         )}
       </ul>
       <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(e) => void onFiles(e.target.files)} />
-      <p className="mt-3 text-xs text-muted">JPG, PNG or WebP, up to 5 MB each. Portrait photos (4:5) look best.</p>
+      <p className="mt-3 text-xs text-muted">JPG, PNG or WebP, up to 5 MB each. {hint}</p>
       {error && <p role="alert" className="mt-2 text-sm text-red-800">{error}</p>}
     </div>
   );

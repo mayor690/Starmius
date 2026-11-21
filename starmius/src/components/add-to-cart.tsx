@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { site } from "@/data/site";
 import { isPurchasable } from "@/lib/stock";
+import { track } from "@/lib/track";
 import type { Product } from "@/lib/types";
 import { useCart } from "./cart-provider";
 import { QtyStepper } from "./qty-stepper";
@@ -20,7 +21,7 @@ export function AddToCart({ product }: { product: Product }) {
       <div className="flex flex-wrap items-center gap-5">
         {available && <QtyStepper value={qty} max={max} onChange={(n) => setQty(Math.min(Math.max(n, 1), max))} label="Quantity" />}
         <button type="button" className="btn btn-primary flex-1 sm:flex-none" disabled={!available}
-          onClick={() => { add(product.slug, qty); setAdded(true); window.setTimeout(() => setAdded(false), 2500); }}>
+          onClick={() => { add(product.slug, qty); track({ t: "atc" }); setAdded(true); window.setTimeout(() => setAdded(false), 2500); }}>
           {available ? (product.stock === "preorder" ? "Pre-order" : "Add to cart") : site.stockLabels.out_of_stock}
         </button>
       </div>

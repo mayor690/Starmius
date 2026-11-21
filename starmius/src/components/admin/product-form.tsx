@@ -101,7 +101,7 @@ export function ProductForm({ product, categories, onSaved, onCancel }: { produc
         {area("benefits", "Benefits (optional)", 3, "One per line.")}
         {area("howToUse", "How to use (optional)", 2)}
         {area("ingredients", "Ingredients (optional)", 3)}
-        <div className="sm:col-span-2"><ImageUploader images={f.images} onChange={(v) => set("images", v)} /></div>
+        <div className="sm:col-span-2"><ImageUploader images={f.images} max={4} label="Images (first is the main picture, up to 4)" hint="With 2 to 4 pictures the shop shows a carousel with dots. Portrait photos (4:5) look best." onChange={(v) => set("images", v)} /></div>
       </div>
       {error && <p role="alert" className="mt-6 text-sm text-red-800">{error}</p>}
       <div className="mt-8 flex flex-wrap gap-4">

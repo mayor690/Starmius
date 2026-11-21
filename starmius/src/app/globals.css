@@ -107,3 +107,10 @@
 /* Dark header: nav links and icons on charcoal */
 .header-dark .nav-link { color: var(--color-ivory-100); }
 .header-dark .nav-link:hover { color: var(--color-champagne-300); }
+
+/* Ad pop-up entrance */
+@keyframes popup-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popup-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.popup-backdrop { animation: popup-fade 0.3s ease-out both; }
+.popup-card { animation: popup-rise 0.4s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .popup-backdrop, .popup-card { animation: none; } }
