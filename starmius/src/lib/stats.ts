@@ -33,12 +33,14 @@ export interface OrderRecord {
   at: string;
   day: string;
   amountNGN: number;
+  /** Crypto orders are counted in dollars. Their naira amount is 0. */
+  amountUSD?: number;
   shippingNGN: number;
   state: string;
   city: string;
   items: { slug: string; name: string; qty: number; lineNGN: number }[];
   /** How it was paid. Older records have no value and were all Paystack. */
-  method?: "paystack" | "bank";
+  method?: "paystack" | "bank" | "usdc" | "usdt";
 }
 interface StatsFile { days: Record<string, Day>; orders: OrderRecord[] }
 
@@ -176,15 +178,16 @@ async function recordEventsD1(db: D1Database, day: string, ops: Ops): Promise<vo
 }
 
 /** Records one verified Paystack payment. Safe to call many times for the same reference. */
-export async function recordPaidOrder(o: { ref: string; amountNGN: number; shippingNGN: number; state?: string; city?: string; items: { slug: string; qty: number }[]; at?: string; method?: "paystack" | "bank" }): Promise<void> {
-  if (!o.ref || !(o.amountNGN > 0)) return;
+export async function recordPaidOrder(o: { ref: string; amountNGN: number; shippingNGN: number; state?: string; city?: string; items: { slug: string; qty: number }[]; at?: string; method?: "paystack" | "bank" | "usdc" | "usdt"; amountUSD?: number }): Promise<void> {
+  const crypto = o.method === "usdc" || o.method === "usdt";
+  if (!o.ref || !(crypto ? (o.amountUSD ?? 0) > 0 : o.amountNGN > 0)) return;
   const [products, settings] = await Promise.all([getAllProducts(), getSettings()]);
   const priced = priceCart(o.items, products, settings.shipping, o.state, o.city);
   const at = o.at && !Number.isNaN(Date.parse(o.at)) ? new Date(o.at).toISOString() : new Date().toISOString();
   const record: OrderRecord = {
-    ref: o.ref, at, method: o.method ?? "paystack", day: lagosToday(new Date(at)), amountNGN: Math.round(o.amountNGN), shippingNGN: Math.round(o.shippingNGN),
+    ref: o.ref, at, method: o.method ?? "paystack", day: lagosToday(new Date(at)), amountNGN: crypto ? 0 : Math.round(o.amountNGN), shippingNGN: crypto ? 0 : Math.round(o.shippingNGN), ...(crypto ? { amountUSD: Math.round((o.amountUSD ?? 0) * 100) / 100 } : {}),
     state: (o.state ?? "").slice(0, 40), city: (o.city ?? "").slice(0, 80),
-    items: priced.items.map((i) => ({ slug: i.product.slug, name: i.product.name, qty: i.qty, lineNGN: i.lineNGN })),
+    items: priced.items.map((i) => ({ slug: i.product.slug, name: i.product.name, qty: i.qty, lineNGN: crypto ? 0 : i.lineNGN })),
   };
 
   const db = await getDb();
@@ -275,6 +278,8 @@ export async function getReport(rangeDays: number) {
   });
 
   const revenueNGN = orders.reduce((s, o) => s + o.amountNGN, 0);
+  const revenueUSD = Math.round(orders.reduce((s, o) => s + (o.amountUSD ?? 0), 0) * 100) / 100;
+  const nairaOrders = orders.filter((o) => o.amountNGN > 0).length;
   const products: Record<string, { name: string; qty: number; revenueNGN: number }> = {};
   const byState: Record<string, { orders: number; revenueNGN: number }> = {};
   for (const o of orders) {
@@ -304,8 +309,8 @@ export async function getReport(rangeDays: number) {
   return {
     range, from: days[0], to: days[days.length - 1],
     totals: {
-      views, visitors, orders: orders.length, revenueNGN, adRevenueNGN,
-      aovNGN: orders.length ? Math.round(revenueNGN / orders.length) : 0,
+      views, visitors, orders: orders.length, revenueNGN, revenueUSD, adRevenueNGN,
+      aovNGN: nairaOrders ? Math.round(revenueNGN / nairaOrders) : 0,
       conversion: visitors ? orders.length / visitors : 0,
       adImpressions: ads.reduce((s, a) => s + a.imp, 0), adClicks: ads.reduce((s, a) => s + a.clk, 0),
     },
@@ -313,6 +318,6 @@ export async function getReport(rangeDays: number) {
     topPages: sortCounts(paths, 10), referrers: sortCounts(refs, 8), devices: sortCounts(devices, 3),
     topProducts: Object.entries(products).map(([slug, p]) => ({ slug, ...p })).sort((a, b) => b.revenueNGN - a.revenueNGN).slice(0, 8),
     byState: Object.entries(byState).map(([state, s]) => ({ state, ...s })).sort((a, b) => b.revenueNGN - a.revenueNGN).slice(0, 8),
-    recentOrders: [...orders].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10).map((o) => ({ ref: o.ref, at: o.at, amountNGN: o.amountNGN, state: o.state, city: o.city, method: o.method ?? "paystack", items: o.items.reduce((s, i) => s + i.qty, 0) })),
+    recentOrders: [...orders].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10).map((o) => ({ ref: o.ref, at: o.at, amountNGN: o.amountNGN, amountUSD: o.amountUSD ?? 0, state: o.state, city: o.city, method: o.method ?? "paystack", items: o.items.reduce((s, i) => s + i.qty, 0) })),
   };
 }
