@@ -13,12 +13,14 @@ interface CatalogValue {
   carouselMs: number;
   usdc: UsdcSettings;
   bank: BankSettings;
+  /** Card payments (Paystack) are switched on and set up. */
+  paystackOn: boolean;
 }
 
-const CatalogContext = createContext<CatalogValue>({ products: [], whatsappBase: null, shipping: { defaultNGN: 0, defaultUSDC: 0, zones: [], cityRules: [] }, carouselMs: 5000, usdc: { evmAddress: "", solanaAddress: "", disabledChains: [], disabledTokens: [] }, bank: { enabled: false, bankName: "", accountName: "", accountNumber: "", note: "" } });
+const CatalogContext = createContext<CatalogValue>({ products: [], whatsappBase: null, shipping: { defaultNGN: 0, defaultUSDC: 0, zones: [], cityRules: [] }, carouselMs: 5000, usdc: { evmAddress: "", solanaAddress: "", disabledChains: [], disabledTokens: [] }, bank: { enabled: false, bankName: "", accountName: "", accountNumber: "", note: "" }, paystackOn: true });
 
-export function CatalogProvider({ products, whatsappBase, shipping, carouselMs, usdc, bank, children }: CatalogValue & { children: ReactNode }) {
-  return <CatalogContext.Provider value={{ products, whatsappBase, shipping, carouselMs, usdc, bank }}>{children}</CatalogContext.Provider>;
+export function CatalogProvider({ products, whatsappBase, shipping, carouselMs, usdc, bank, paystackOn, children }: CatalogValue & { children: ReactNode }) {
+  return <CatalogContext.Provider value={{ products, whatsappBase, shipping, carouselMs, usdc, bank, paystackOn }}>{children}</CatalogContext.Provider>;
 }
 
 export const useCatalog = () => useContext(CatalogContext);

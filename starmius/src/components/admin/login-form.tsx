@@ -6,6 +6,7 @@ import { adminApi } from "@/lib/admin-api";
 
 export function LoginForm({ configured }: { configured: boolean }) {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -15,7 +16,7 @@ export function LoginForm({ configured }: { configured: boolean }) {
     setBusy(true);
     setError("");
     try {
-      await adminApi("/api/admin/session", "POST", { password });
+      await adminApi("/api/admin/session", "POST", { name, password });
       router.replace("/admin");
       router.refresh();
     } catch (err) {
@@ -28,7 +29,7 @@ export function LoginForm({ configured }: { configured: boolean }) {
     <form onSubmit={onSubmit} className="flex w-full max-w-sm flex-col gap-8 border border-champagne-300/60 bg-ivory-50 p-10">
       <div className="text-center">
         <p className="gold-text font-display text-3xl font-medium tracking-[0.2em]">STARMIUS</p>
-        <p className="eyebrow mt-3">Owner access</p>
+        <p className="eyebrow mt-3">Dashboard sign in</p>
       </div>
       {!configured ? (
         <p className="text-sm leading-relaxed text-muted">
@@ -36,6 +37,10 @@ export function LoginForm({ configured }: { configured: boolean }) {
         </p>
       ) : (
         <>
+          <div>
+            <label htmlFor="staff-name" className="field-label">Staff name (owner: leave empty)</label>
+            <input id="staff-name" autoComplete="username" maxLength={40} className="field" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
           <div>
             <label htmlFor="password" className="field-label">Password</label>
             <input id="password" type="password" autoComplete="current-password" required className="field" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />

@@ -15,7 +15,7 @@ function thankYouLink(o: BankOrder): string {
   return `https://wa.me/${whatsappNumber(o.customer.phone)}?text=${encodeURIComponent(text)}`;
 }
 
-export function BankTransfers({ onPending }: { onPending: (n: number) => void }) {
+export function BankTransfers({ onPending, owner }: { onPending: (n: number) => void; owner: boolean }) {
   const [orders, setOrders] = useState<BankOrder[] | null>(null);
   const [error, setError] = useState("");
   const [ref, setRef] = useState("");
@@ -35,10 +35,20 @@ export function BankTransfers({ onPending }: { onPending: (n: number) => void })
     } catch (e) { setError(e instanceof Error ? e.message : "Could not load bank transfers."); }
   }, [onPending]);
   useEffect(() => { void load(); }, [load]);
+  // New transfers appear without a refresh, so whoever is on the desk sees them quickly.
+  useEffect(() => {
+    const t = window.setInterval(() => { if (!document.hidden) void load(); }, 20_000);
+    return () => window.clearInterval(t);
+  }, [load]);
 
   const pending = useMemo(() => (orders ?? []).filter((o) => o.status === "pending"), [orders]);
   const paid = useMemo(() => (orders ?? []).filter((o) => o.status === "paid"), [orders]);
   const cancelled = useMemo(() => (orders ?? []).filter((o) => o.status === "cancelled"), [orders]);
+  // No reference yet? Show waiting orders with the same amount, so a bank alert can be matched in one tap.
+  const sameAmount = useMemo(() => {
+    const n = Number(amount);
+    return !ref.trim() && Number.isInteger(n) && n > 0 ? pending.filter((o) => o.amountNGN === n) : [];
+  }, [pending, amount, ref]);
   const match = useMemo(() => pending.find((o) => o.ref === ref.trim().toUpperCase()), [pending, ref]);
 
   function fill(o: BankOrder) {
@@ -71,7 +81,7 @@ export function BankTransfers({ onPending }: { onPending: (n: number) => void })
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-3xl font-medium">Bank transfers</h2>
-          <p className="mt-1 max-w-2xl text-sm text-muted">Customers confirm on WhatsApp after paying. When the bank alert reaches you, match it here. Each bank reference can only be used once, so an alert can never be counted twice.</p>
+          <p className="mt-1 max-w-2xl text-sm text-muted">The list refreshes by itself every 20 seconds. Customers confirm on WhatsApp after paying. When the bank alert reaches you, match it here. Each bank reference can only be used once, so an alert can never be counted twice.</p>
         </div>
         <button type="button" className="btn btn-outline" onClick={() => void load()}>Refresh</button>
       </div>
@@ -95,10 +105,26 @@ export function BankTransfers({ onPending }: { onPending: (n: number) => void })
         </div>
         {match && <p className="mt-4 text-sm text-champagne-700">Matches {match.customer.fullName}, {match.customer.city}, {match.customer.state}. Order total {formatNGN(match.amountNGN)}.</p>}
         {ref && !match && ref.trim().length >= 6 && <p className="mt-4 text-sm text-muted">No waiting order has this reference.</p>}
-        <label className="mt-4 flex items-center gap-3 text-sm">
-          <input type="checkbox" className="size-4 accent-[#6b4f2a]" checked={force} onChange={(e) => setForce(e.target.checked)} />
-          Accept a different amount from the order total
-        </label>
+        {sameAmount.length > 0 && (
+          <div className="mt-4 text-sm">
+            <p className="text-muted">Waiting orders for {formatNGN(Number(amount))}:</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {sameAmount.map((o) => (
+                <button key={o.ref} type="button" className="border border-champagne-500 px-3 py-2 text-left hover:bg-ivory-100" onClick={() => setRef(o.ref)}>
+                  <span className="font-mono">{o.ref}</span> <span className="text-muted">{o.customer.fullName}, {o.customer.state}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {owner ? (
+          <label className="mt-4 flex items-center gap-3 text-sm">
+            <input type="checkbox" className="size-4 accent-[#6b4f2a]" checked={force} onChange={(e) => setForce(e.target.checked)} />
+            Accept a different amount from the order total
+          </label>
+        ) : (
+          <p className="mt-4 text-xs text-muted">The amount must match the order total. If it does not, ask the owner.</p>
+        )}
         {formError && <p role="alert" className="mt-4 text-sm text-red-800">{formError}</p>}
         {done && (
           <div role="status" className="mt-4 border border-emerald-800/30 bg-emerald-50 p-4 text-sm">
@@ -128,7 +154,7 @@ export function BankTransfers({ onPending }: { onPending: (n: number) => void })
               )}
               <div className="mt-4 flex gap-6 text-xs font-medium uppercase tracking-[0.2em]">
                 <button type="button" className="text-champagne-700 hover:text-ink" onClick={() => fill(o)}>Match an alert</button>
-                <button type="button" className="text-red-800" onClick={() => void cancel(o)}>Cancel</button>
+                {owner && <button type="button" className="text-red-800" onClick={() => void cancel(o)}>Cancel</button>}
               </div>
             </li>
           ))}
@@ -141,7 +167,7 @@ export function BankTransfers({ onPending }: { onPending: (n: number) => void })
         <ul className="mt-4 divide-y divide-champagne-300/40 border-y border-champagne-300/40 bg-ivory-50">
           {paid.map((o) => (
             <li key={o.ref} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
-              <span><span className="font-mono">{o.ref}</span> &middot; {o.customer.fullName}<span className="block text-xs text-muted">{o.paid ? `${when(o.paid.at)} \u00b7 bank ref ${o.paid.bankRef}` : ""}</span></span>
+              <span><span className="font-mono">{o.ref}</span> &middot; {o.customer.fullName}<span className="block text-xs text-muted">{o.paid ? `${when(o.paid.at)} \u00b7 bank ref ${o.paid.bankRef}${o.paid.by ? ` \u00b7 confirmed by ${o.paid.by}` : ""}` : ""}</span></span>
               <span className="flex items-center gap-4">
                 <a href={thankYouLink(o)} target="_blank" rel="noopener noreferrer" className="text-xs font-medium uppercase tracking-[0.2em] text-champagne-700 underline underline-offset-4">WhatsApp</a>
                 <span className="font-display text-lg tabular-nums">{formatNGN(o.paid?.receivedNGN ?? o.amountNGN)}</span>
@@ -155,7 +181,7 @@ export function BankTransfers({ onPending }: { onPending: (n: number) => void })
       {cancelled.length > 0 && (
         <details className="text-sm text-muted">
           <summary className="cursor-pointer">Cancelled ({cancelled.length})</summary>
-          <ul className="mt-3 flex flex-col gap-1">{cancelled.map((o) => <li key={o.ref}><span className="font-mono">{o.ref}</span> &middot; {o.customer.fullName} &middot; {formatNGN(o.amountNGN)}</li>)}</ul>
+          <ul className="mt-3 flex flex-col gap-1">{cancelled.map((o) => <li key={o.ref}><span className="font-mono">{o.ref}</span> &middot; {o.customer.fullName} &middot; {formatNGN(o.amountNGN)}{o.cancelled ? ` \u00b7 cancelled by ${o.cancelled.by}` : ""}</li>)}</ul>
         </details>
       )}
     </div>

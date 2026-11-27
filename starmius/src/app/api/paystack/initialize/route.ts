@@ -3,14 +3,14 @@ import { randomBytes } from "node:crypto";
 import { site } from "@/data/site";
 import { priceCart, type CartLine } from "@/lib/pricing";
 import { cleanCustomer } from "@/lib/order-message";
-import { getAllProducts, getShipping } from "@/lib/store";
+import { getAllProducts, getPaystackOn, getShipping } from "@/lib/store";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
 
 export async function POST(req: Request) {
   const key = process.env.PAYSTACK_SECRET_KEY;
-  if (!key) return json({ error: "Naira payments are not configured yet." }, 503);
+  if (!key || !(await getPaystackOn())) return json({ error: "Card payments are not available right now. Please choose another way to pay." }, 503);
 
   const body = (await req.json().catch(() => null)) as {
     items?: CartLine[];

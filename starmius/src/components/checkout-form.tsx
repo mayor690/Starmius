@@ -35,11 +35,11 @@ export function CheckoutForm() {
   const { lines, hydrated, clear } = useCart();
   const { session } = useAuth();
 
-  const { usdc, bank } = useCatalog();
+  const { usdc, bank, paystackOn } = useCatalog();
   // Naira, bank transfer when it is set up, plus each crypto token the owner has not switched off.
   const methods = payments.methods.filter((m) => {
     if (!m.enabled) return false;
-    if (m.id === "naira") return true;
+    if (m.id === "naira") return paystackOn;
     if (m.id === "bank") return bank.enabled && Boolean(bank.accountNumber);
     return !usdc.disabledTokens.includes(m.id === "usdc" ? "USDC" : "USDT");
   });

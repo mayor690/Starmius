@@ -1,5 +1,5 @@
 /** Client helper for the admin API. Throws an Error carrying the server's message. */
-export async function adminApi<T = unknown>(url: string, method: "GET" | "PUT" | "POST" | "DELETE", body?: unknown): Promise<T> {
+export async function adminApi<T = unknown>(url: string, method: "GET" | "PUT" | "POST" | "PATCH" | "DELETE", body?: unknown): Promise<T> {
   const res = await fetch(url, {
     method,
     headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,

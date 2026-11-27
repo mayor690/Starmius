@@ -95,6 +95,8 @@ export interface SiteSettings {
   carouselSeconds: number;
   usdc: UsdcSettings;
   bank: BankSettings;
+  /** Show the card payment option (Paystack). Switch off if Paystack is unavailable. */
+  paystackEnabled: boolean;
 }
 
 export interface Contact {

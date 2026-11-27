@@ -20,7 +20,8 @@ export interface BankOrder {
   senderName?: string;
   /** The transfer reference or session ID the customer quoted, if any. Not trusted. */
   customerTransferRef?: string;
-  paid?: { at: string; bankRef: string; receivedNGN: number };
+  paid?: { at: string; bankRef: string; receivedNGN: number; /** Who marked it received. */ by?: string };
+  cancelled?: { at: string; by: string };
 }
 
 export type Outcome<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -77,7 +78,7 @@ export async function listBankOrders(limit = 300): Promise<BankOrder[]> {
   return [...(await readDoc<LocalFile>("bank-orders", empty)).orders].sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit);
 }
 
-export interface ReceiveInput { ref: string; bankRef: string; receivedNGN: number; force: boolean }
+export interface ReceiveInput { ref: string; bankRef: string; receivedNGN: number; force: boolean; by: string }
 
 /** Marks an order as paid after the owner has seen the bank alert. */
 export async function markReceived(input: ReceiveInput): Promise<Outcome<BankOrder>> {
@@ -94,7 +95,7 @@ export async function markReceived(input: ReceiveInput): Promise<Outcome<BankOrd
     return { ok: false, error: `The amount received is ${word} than the order total. Tick "Accept a different amount" if you want to continue.` };
   }
 
-  const paid = { at: new Date().toISOString(), bankRef, receivedNGN: input.receivedNGN };
+  const paid = { at: new Date().toISOString(), bankRef, receivedNGN: input.receivedNGN, by: input.by };
   const next: BankOrder = { ...order, status: "paid", paid };
   const key = refKey(bankRef);
 
@@ -130,11 +131,11 @@ async function markReceivedD1(db: D1Database, next: BankOrder, key: string): Pro
   }
 }
 
-export async function cancelBankOrder(ref: string): Promise<Outcome<BankOrder>> {
+export async function cancelBankOrder(ref: string, by: string): Promise<Outcome<BankOrder>> {
   const order = await getBankOrder(ref);
   if (!order) return { ok: false, error: "Order not found." };
   if (order.status !== "pending") return { ok: false, error: `Only orders waiting for payment can be cancelled (this one is ${order.status}).` };
-  const next: BankOrder = { ...order, status: "cancelled" };
+  const next: BankOrder = { ...order, status: "cancelled", cancelled: { at: new Date().toISOString(), by } };
   const db = await getDb();
   if (db) {
     await db.prepare("UPDATE bank_orders SET status = 'cancelled', data = ? WHERE ref = ? AND status = 'pending'").bind(JSON.stringify(next), ref).run();

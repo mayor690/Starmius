@@ -6,6 +6,7 @@ import { adminApi } from "@/lib/admin-api";
 import { BankEditor } from "./bank-editor";
 import { BannerEditor } from "./banner-editor";
 import { ShippingEditor } from "./shipping-editor";
+import { StaffManager } from "./staff-manager";
 import { StorageCheck } from "./storage-check";
 import { UsdcEditor } from "./usdc-editor";
 import type { InfoBlock, SiteSettings, SocialLink } from "@/lib/types";
@@ -30,7 +31,7 @@ function BlockEditor({ title, value, onChange }: { title: string; value: InfoBlo
   );
 }
 
-export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
+export function SiteSettingsForm({ initial, paystackConfigured }: { initial: SiteSettings; paystackConfigured: boolean }) {
   const [s, setS] = useState<SiteSettings>(initial);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -81,9 +82,23 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
         </div>
       </section>
 
+      <StaffManager />
+
       <StorageCheck />
 
       <BannerEditor value={s.banners} onChange={(banners) => setS({ ...s, banners })} />
+
+      <section>
+        <h2 className="font-display text-3xl font-medium">Card payments (Paystack)</h2>
+        <label className="mt-4 flex items-center gap-3 text-sm font-medium">
+          <input type="checkbox" className="size-4 accent-[#6b4f2a]" checked={s.paystackEnabled} onChange={(e) => setS({ ...s, paystackEnabled: e.target.checked })} />
+          Show &quot;Pay in Naira&quot; (card or USSD) at checkout
+        </label>
+        <p className="mt-2 max-w-3xl text-xs leading-relaxed text-muted">
+          {paystackConfigured ? "Paystack is connected on this site." : "Paystack is not connected on this site: add PAYSTACK_SECRET_KEY, otherwise this option stays hidden."}
+          {" "}Switch it off any time, for example if Paystack is down or your live key is not approved yet. Customers will still see bank transfer and crypto.
+        </p>
+      </section>
 
       <BankEditor value={s.bank} onChange={(bank) => setS({ ...s, bank })} />
 

@@ -30,6 +30,7 @@ const seedSettings = (): SiteSettings => ({
   banners: withDemoBanners(SAMPLE_BANNERS),
   carouselSeconds: 5,
   usdc: seedUsdc(),
+  paystackEnabled: true,
   bank: { enabled: false, bankName: "", accountName: "", accountNumber: "", note: "Bank app transfers and P2P transfers are both fine." },
 });
 
@@ -61,6 +62,8 @@ export const getSettings = readSettings;
 export const getActiveBanners = async () => (await readSettings()).banners.filter((b) => isLive(b));
 export const getCarouselSeconds = async () => (await readSettings()).carouselSeconds;
 export const getUsdc = async () => (await readSettings()).usdc;
+/** Card payments show only when switched on in the dashboard and the Paystack key is set on the server. */
+export const getPaystackOn = async () => (await readSettings()).paystackEnabled && Boolean(process.env.PAYSTACK_SECRET_KEY);
 export const getBank = async () => (await readSettings()).bank;
 export const getShipping = async () => (await readSettings()).shipping;
 export const getSocials = async (): Promise<SocialLink[]> => (await readSettings()).socials;

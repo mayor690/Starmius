@@ -253,6 +253,8 @@ export function parseSettings(raw: unknown): Result<SiteSettings> {
   if (bank.accountNumber && !/^\d{10}$/.test(bank.accountNumber)) return fail("Account number must be exactly 10 digits.");
   if (bank.enabled && (!bank.bankName || !bank.accountName || !bank.accountNumber)) return fail("To switch on bank transfers, fill in the bank name, account name and account number.");
 
+  const paystackEnabled = r.paystackEnabled !== false;
+
   const shipping = parseShipping(r.shipping);
   if (!shipping.ok) return fail(shipping.error);
   const banners = parseBanners(r.banners ?? []);
@@ -260,6 +262,6 @@ export function parseSettings(raw: unknown): Result<SiteSettings> {
 
   return {
     ok: true,
-    value: { bank, usdc, carouselSeconds, shipping: shipping.value, banners: banners.value, lowStockThreshold: threshold, socials, email, brandHandle: clean(r.brandHandle, 60), address: block(r.address), hours: block(r.hours) },
+    value: { paystackEnabled, bank, usdc, carouselSeconds, shipping: shipping.value, banners: banners.value, lowStockThreshold: threshold, socials, email, brandHandle: clean(r.brandHandle, 60), address: block(r.address), hours: block(r.hours) },
   };
 }

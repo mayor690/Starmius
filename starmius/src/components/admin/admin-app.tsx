@@ -19,9 +19,13 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "site", label: "Settings" },
 ];
 
-export function AdminApp({ initialProducts, initialCategories, initialSettings }: { initialProducts: Product[]; initialCategories: Category[]; initialSettings: SiteSettings }) {
+export function AdminApp({ role, who, initialProducts, initialCategories, initialSettings, paystackConfigured }: {
+  role: "owner" | "payments"; who: string; initialProducts: Product[]; initialCategories: Category[]; initialSettings: SiteSettings | null; paystackConfigured: boolean;
+}) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("products");
+  const owner = role === "owner";
+  const tabs = owner ? TABS : TABS.filter((t) => t.id === "bank");
+  const [tab, setTab] = useState<Tab>(owner ? "products" : "bank");
   const [products, setProducts] = useState(initialProducts);
   const [categories, setCategories] = useState(initialCategories);
   const [pendingBank, setPendingBank] = useState(0);
@@ -39,16 +43,16 @@ export function AdminApp({ initialProducts, initialCategories, initialSettings }
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-champagne-300/60 pb-6">
         <div>
           <p className="gold-text font-display text-3xl font-medium tracking-[0.2em]">STARMIUS</p>
-          <p className="eyebrow mt-2">Owner dashboard</p>
+          <p className="eyebrow mt-2">{owner ? "Owner dashboard" : `Payments desk \u00b7 ${who}`}</p>
         </div>
         <div className="flex items-center gap-6 text-xs uppercase tracking-[0.25em]">
-          <a href="/" target="_blank" rel="noopener noreferrer" className="text-champagne-700 hover:text-ink">View shop</a>
+          {owner && <a href="/" target="_blank" rel="noopener noreferrer" className="text-champagne-700 hover:text-ink">View shop</a>}
           <button type="button" onClick={() => void signOut()} className="text-muted hover:text-ink">Sign out</button>
         </div>
       </header>
 
       <nav aria-label="Dashboard sections" className="mt-8 flex flex-wrap gap-x-10 gap-y-3">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}
             className={`border-b pb-1 text-xs font-medium uppercase tracking-[0.3em] transition-colors ${tab === t.id ? "border-champagne-600 text-champagne-700" : "border-transparent text-muted hover:text-ink"}`}>
             {t.label}{t.id === "bank" && pendingBank > 0 && <span className="ml-2 bg-champagne-600 px-1.5 py-0.5 text-[0.65rem] text-ivory-50">{pendingBank}</span>}
@@ -59,9 +63,9 @@ export function AdminApp({ initialProducts, initialCategories, initialSettings }
       <div className="mt-10">
         {tab === "products" && <ProductManager products={products} categories={categories} onChange={setProducts} />}
         {tab === "categories" && <CategoryManager categories={categories} products={products} onChange={setCategories} />}
-        {tab === "bank" && <BankTransfers onPending={setPendingBank} />}
+        {tab === "bank" && <BankTransfers onPending={setPendingBank} owner={owner} />}
         {tab === "stats" && <StatsPanel />}
-        {tab === "site" && <SiteSettingsForm initial={initialSettings} />}
+        {tab === "site" && owner && initialSettings && <SiteSettingsForm initial={initialSettings} paystackConfigured={paystackConfigured} />}
       </div>
     </div>
   );

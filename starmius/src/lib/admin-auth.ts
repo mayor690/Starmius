@@ -4,16 +4,20 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 /**
- * Owner-only authentication.
- * - Password lives in ADMIN_PASSWORD (min 12 chars). Signing uses AUTH_SECRET + the password,
- *   so changing either one signs the owner out everywhere.
- * - Session is a signed, httpOnly, SameSite=Strict cookie that expires after 8 hours.
+ * Dashboard sign-in for the owner and for staff the owner creates.
+ * - The owner's password lives in ADMIN_PASSWORD (min 12 chars). Signing uses AUTH_SECRET + that password,
+ *   so changing either one signs everyone out.
+ * - Staff sign in with the name and password the owner gave them. They can only work in Bank transfers.
+ * - A session is a signed, httpOnly, SameSite=Strict cookie that expires after 8 hours.
  * - Failed logins are rate limited per IP and globally (in memory, resets on restart).
  */
 
 const COOKIE = "starmius_admin";
 const TTL_SECONDS = 60 * 60 * 8;
 const MIN_PASSWORD = 12;
+
+export type AdminRole = "owner" | "payments";
+export interface AdminSession { role: AdminRole; name: string; staffId?: string }
 
 export const adminConfigured = () => Boolean(process.env.AUTH_SECRET) && (process.env.ADMIN_PASSWORD ?? "").length >= MIN_PASSWORD;
 
@@ -30,24 +34,37 @@ export function passwordMatches(input: string): boolean {
   return adminConfigured() && safeEqual(input, process.env.ADMIN_PASSWORD ?? "");
 }
 
-function verify(token: string | undefined): boolean {
-  if (!token || !adminConfigured()) return false;
+interface Payload { exp: number; role: AdminRole; name: string; sid?: string; v?: string }
+
+/** The signed-in person, or null. A staff session also stops working the moment the account is disabled, deleted or reset. */
+export async function getAdminSession(): Promise<AdminSession | null> {
+  const token = (await cookies()).get(COOKIE)?.value;
+  if (!token || !adminConfigured()) return null;
   const [payload, sig] = token.split(".");
-  if (!payload || !sig || !safeEqual(sig, sign(payload))) return false;
-  try {
-    const { exp } = JSON.parse(Buffer.from(payload, "base64url").toString()) as { exp?: number };
-    return typeof exp === "number" && exp > Date.now() / 1000;
-  } catch {
-    return false;
+  if (!payload || !sig || !safeEqual(sig, sign(payload))) return null;
+  let p: Payload;
+  try { p = JSON.parse(Buffer.from(payload, "base64url").toString()) as Payload; } catch { return null; }
+  if (typeof p.exp !== "number" || p.exp <= Date.now() / 1000) return null;
+  if (p.role === "owner") return { role: "owner", name: "Owner" };
+  if (p.role === "payments" && p.sid) {
+    const { getStaff, versionOf } = await import("./staff");
+    const m = await getStaff(p.sid);
+    if (!m || m.disabled || versionOf(m) !== p.v) return null;
+    return { role: "payments", name: m.name, staffId: m.id };
   }
+  return null;
 }
 
+/** True for any signed-in owner or staff member. */
 export async function isAdmin(): Promise<boolean> {
-  return verify((await cookies()).get(COOKIE)?.value);
+  return (await getAdminSession()) !== null;
 }
 
-export async function startAdminSession(): Promise<void> {
-  const payload = Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + TTL_SECONDS })).toString("base64url");
+export async function startAdminSession(who: { role: "owner" } | { role: "payments"; name: string; staffId: string; version: string }): Promise<void> {
+  const body: Payload = who.role === "owner"
+    ? { exp: Math.floor(Date.now() / 1000) + TTL_SECONDS, role: "owner", name: "Owner" }
+    : { exp: Math.floor(Date.now() / 1000) + TTL_SECONDS, role: "payments", name: who.name, sid: who.staffId, v: who.version };
+  const payload = Buffer.from(JSON.stringify(body)).toString("base64url");
   (await cookies()).set(COOKIE, `${payload}.${sign(payload)}`, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -72,9 +89,13 @@ export function sameOrigin(req: Request): boolean {
   return hosts.some((h) => h && h.split(",")[0]?.trim() === originHost);
 }
 
-/** For API routes: returns an error response, or null when the owner is signed in and the request is same-origin. */
-export async function requireAdmin(req: Request): Promise<NextResponse | null> {
-  if (!(await isAdmin())) return NextResponse.json({ error: "Not found" }, { status: 404 });
+/**
+ * For API routes: returns an error response, or null when the caller is allowed.
+ * `who` is "owner" (default) for owner-only routes, or "any" to also let staff in.
+ */
+export async function requireAdmin(req: Request, who: "owner" | "any" = "owner"): Promise<NextResponse | null> {
+  const session = await getAdminSession();
+  if (!session || (who === "owner" && session.role !== "owner")) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (!["GET", "HEAD"].includes(req.method) && !sameOrigin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   return null;
 }
