@@ -2,7 +2,7 @@
 
 /** Tiny cookie-free event sender for the Stats page. Events are batched and sent together. */
 
-type Ev = { t: "pv"; p: string; r: string; w: number } | { t: "imp" | "clk"; b: string } | { t: "atc" | "co" | "usdc" };
+type Ev = { t: "pv"; p: string; r: string; w: number } | { t: "imp" | "clk"; b: string } | { t: "atc" | "co" | "usdc" | "bank" };
 
 const VID_KEY = "starmius:vid";
 let queue: Ev[] = [];

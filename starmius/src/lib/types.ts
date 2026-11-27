@@ -40,6 +40,17 @@ export interface SocialLink {
   showInContact?: boolean;
 }
 
+/** Bank transfer details shown to customers at checkout. Public by design. */
+export interface BankSettings {
+  enabled: boolean;
+  bankName: string;
+  accountName: string;
+  /** Ten digits (NUBAN). */
+  accountNumber: string;
+  /** Extra line shown under the details, e.g. "Transfers from any bank or P2P app are fine". */
+  note: string;
+}
+
 /** Where crypto (USDC and USDT) payments are received. Chain definitions and token contracts stay in data/payments.ts. */
 export interface UsdcSettings {
   /** One address that works on every EVM chain. Empty until you set it. */
@@ -83,6 +94,7 @@ export interface SiteSettings {
   /** Seconds between pictures in carousels. 0 turns auto-advance off. */
   carouselSeconds: number;
   usdc: UsdcSettings;
+  bank: BankSettings;
 }
 
 export interface Contact {

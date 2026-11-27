@@ -23,6 +23,16 @@ export const checkoutConfig = {
     "Paste your transaction hash.",
     "Confirm on WhatsApp so we can verify and prepare your order.",
   ],
+  bankSteps: [
+    "Transfer the exact amount to the account below, from any bank app or P2P app.",
+    "Put your order reference in the narration, so we can match your payment quickly.",
+    "Tap the button to confirm on WhatsApp. We reply once your transfer reaches us.",
+  ],
+  pendingBank: {
+    title: "Almost done",
+    body: "We have your order. Once your transfer reaches our account we will confirm it on WhatsApp and prepare your delivery.",
+    cta: { label: "Continue shopping", href: "/shop" },
+  },
   success: {
     title: "Thank you",
     body: "Your payment was received. We will contact you shortly about delivery.",

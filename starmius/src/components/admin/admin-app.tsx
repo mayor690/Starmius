@@ -1,18 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { adminApi } from "@/lib/admin-api";
 import type { Category, Product, SiteSettings } from "@/lib/types";
+import { BankTransfers } from "./bank-transfers";
 import { CategoryManager } from "./category-manager";
 import { ProductManager } from "./product-manager";
 import { SiteSettingsForm } from "./site-settings-form";
 import { StatsPanel } from "./stats-panel";
 
-type Tab = "products" | "categories" | "stats" | "site";
+type Tab = "products" | "categories" | "bank" | "stats" | "site";
 const TABS: { id: Tab; label: string }[] = [
   { id: "products", label: "Products" },
   { id: "categories", label: "Categories" },
+  { id: "bank", label: "Bank transfers" },
   { id: "stats", label: "Stats" },
   { id: "site", label: "Settings" },
 ];
@@ -22,6 +24,9 @@ export function AdminApp({ initialProducts, initialCategories, initialSettings }
   const [tab, setTab] = useState<Tab>("products");
   const [products, setProducts] = useState(initialProducts);
   const [categories, setCategories] = useState(initialCategories);
+  const [pendingBank, setPendingBank] = useState(0);
+  // Show the waiting count on the tab from the start, so a new transfer is noticed.
+  useEffect(() => { adminApi<{ orders: { status: string }[] }>("/api/admin/bank", "GET").then((r) => setPendingBank(r.orders.filter((o) => o.status === "pending").length)).catch(() => undefined); }, []);
 
   async function signOut() {
     await adminApi("/api/admin/session", "DELETE").catch(() => undefined);
@@ -46,7 +51,7 @@ export function AdminApp({ initialProducts, initialCategories, initialSettings }
         {TABS.map((t) => (
           <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}
             className={`border-b pb-1 text-xs font-medium uppercase tracking-[0.3em] transition-colors ${tab === t.id ? "border-champagne-600 text-champagne-700" : "border-transparent text-muted hover:text-ink"}`}>
-            {t.label}
+            {t.label}{t.id === "bank" && pendingBank > 0 && <span className="ml-2 bg-champagne-600 px-1.5 py-0.5 text-[0.65rem] text-ivory-50">{pendingBank}</span>}
           </button>
         ))}
       </nav>
@@ -54,6 +59,7 @@ export function AdminApp({ initialProducts, initialCategories, initialSettings }
       <div className="mt-10">
         {tab === "products" && <ProductManager products={products} categories={categories} onChange={setProducts} />}
         {tab === "categories" && <CategoryManager categories={categories} products={products} onChange={setCategories} />}
+        {tab === "bank" && <BankTransfers onPending={setPendingBank} />}
         {tab === "stats" && <StatsPanel />}
         {tab === "site" && <SiteSettingsForm initial={initialSettings} />}
       </div>

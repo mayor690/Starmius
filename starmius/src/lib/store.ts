@@ -30,6 +30,7 @@ const seedSettings = (): SiteSettings => ({
   banners: withDemoBanners(SAMPLE_BANNERS),
   carouselSeconds: 5,
   usdc: seedUsdc(),
+  bank: { enabled: false, bankName: "", accountName: "", accountNumber: "", note: "Bank app transfers and P2P transfers are both fine." },
 });
 
 // Serialises writes so two saves never interleave.
@@ -44,7 +45,7 @@ const readCatalog = () => readDoc<CatalogFile>("catalog", () => ({ categories: s
 // Older site.json files predate newer settings, so fill in defaults.
 const readSettings = async (): Promise<SiteSettings> => {
   const merged = { ...seedSettings(), ...(await readDoc<Partial<SiteSettings>>("site", seedSettings)) };
-  return { ...merged, shipping: { ...merged.shipping, cityRules: merged.shipping.cityRules ?? [] }, usdc: { ...seedUsdc(), ...(merged.usdc ?? {}) } };
+  return { ...merged, shipping: { ...merged.shipping, cityRules: merged.shipping.cityRules ?? [] }, usdc: { ...seedUsdc(), ...(merged.usdc ?? {}) }, bank: { ...seedSettings().bank, ...(merged.bank ?? {}) } };
 };
 
 // Reads
@@ -60,6 +61,7 @@ export const getSettings = readSettings;
 export const getActiveBanners = async () => (await readSettings()).banners.filter((b) => isLive(b));
 export const getCarouselSeconds = async () => (await readSettings()).carouselSeconds;
 export const getUsdc = async () => (await readSettings()).usdc;
+export const getBank = async () => (await readSettings()).bank;
 export const getShipping = async () => (await readSettings()).shipping;
 export const getSocials = async (): Promise<SocialLink[]> => (await readSettings()).socials;
 

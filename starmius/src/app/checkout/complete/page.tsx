@@ -61,7 +61,7 @@ function nairaWhatsappUrl(reference: string, v: Verified, catalog: Product[], sh
   return whatsappUrl(message, base);
 }
 
-export default async function CompletePage({ searchParams }: { searchParams: Promise<{ reference?: string; trxref?: string; method?: string }> }) {
+export default async function CompletePage({ searchParams }: { searchParams: Promise<{ reference?: string; trxref?: string; method?: string; ref?: string }> }) {
   const q = await searchParams;
   const reference = q.reference ?? q.trxref;
 
@@ -76,15 +76,18 @@ export default async function CompletePage({ searchParams }: { searchParams: Pro
       await recordPaidOrder({ ref: reference, amountNGN: verified.amountNGN, shippingNGN: verified.shippingNGN, state: c.state, city: c.city, items: verified.items }).catch(() => undefined);
       waUrl = nairaWhatsappUrl(reference, verified, await getAllProducts(), await getShipping(), await getWhatsappBase());
     }
-  } else if (q.method === "usdc") outcome = "pending";
+  } else if (q.method === "usdc" || q.method === "bank") outcome = "pending";
 
-  const copy = checkoutConfig[outcome];
+  const isBank = outcome === "pending" && q.method === "bank";
+  const bankRef = isBank && /^STM-[A-Z0-9]{6,14}$/.test(q.ref ?? "") ? q.ref : undefined;
+  const copy = isBank ? checkoutConfig.pendingBank : checkoutConfig[outcome];
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-8 px-6 py-32 text-center">
       {outcome !== "failure" && <ClearCart />}
       <h1 className="gold-text font-display text-5xl font-medium">{copy.title}</h1>
       <span className="h-px w-12 bg-champagne-500" aria-hidden="true" />
       <p className="leading-relaxed text-muted">{copy.body}</p>
+      {bankRef && <p className="text-xs tracking-[0.25em] text-champagne-700">Order {bankRef}</p>}
       {reference && outcome === "success" && <p className="text-xs tracking-[0.25em] text-champagne-700">{reference}</p>}
       {outcome === "success" && waUrl && reference && <WhatsAppNotify url={waUrl} reference={reference} />}
       {outcome === "pending" && <WhatsAppNotify />}

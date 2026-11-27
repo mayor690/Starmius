@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { checkoutConfig } from "@/data/checkout";
 import { payments, type PaymentMethod, type Token } from "@/data/payments";
 import { site } from "@/data/site";
-import { formatToken } from "@/lib/format";
+import { formatNGN, formatToken } from "@/lib/format";
 import { NIGERIA_STATES, OUTSIDE_NIGERIA } from "@/lib/shipping";
 import { priceCart } from "@/lib/pricing";
 import { buildOrderMessage, cleanCustomer, whatsappUrl } from "@/lib/order-message";
@@ -16,8 +16,16 @@ import { addressProblem } from "@/lib/usdc";
 import { useAuth } from "./auth-provider";
 import { useCart } from "./cart-provider";
 import { useCatalog } from "./catalog-provider";
+import { BankPanel } from "./bank-panel";
 import { CityField } from "./city-field";
 import { OrderTotals } from "./order-totals";
+
+const REF_CHARS = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+function newOrderRef(): string {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return `STM-${Array.from(bytes, (b) => REF_CHARS[b % REF_CHARS.length]).join("")}`;
+}
 
 const EVM_HASH = /^0x[a-fA-F0-9]{64}$/;
 const SOL_SIG = /^[1-9A-HJ-NP-Za-km-z]{64,90}$/;
@@ -27,9 +35,14 @@ export function CheckoutForm() {
   const { lines, hydrated, clear } = useCart();
   const { session } = useAuth();
 
-  const { usdc } = useCatalog();
-  // Naira, plus each crypto token the owner has not switched off.
-  const methods = payments.methods.filter((m) => m.enabled && (m.id === "naira" || !usdc.disabledTokens.includes(m.id === "usdc" ? "USDC" : "USDT")));
+  const { usdc, bank } = useCatalog();
+  // Naira, bank transfer when it is set up, plus each crypto token the owner has not switched off.
+  const methods = payments.methods.filter((m) => {
+    if (!m.enabled) return false;
+    if (m.id === "naira") return true;
+    if (m.id === "bank") return bank.enabled && Boolean(bank.accountNumber);
+    return !usdc.disabledTokens.includes(m.id === "usdc" ? "USDC" : "USDT");
+  });
 
   const [method, setMethod] = useState<PaymentMethod["id"]>(methods[0]?.id ?? "naira");
   const [values, setValues] = useState<Record<string, string>>({});
@@ -40,6 +53,10 @@ export function CheckoutForm() {
   );
   const [chainId, setChainId] = useState("");
   const [hash, setHash] = useState("");
+  // The order reference goes in the transfer narration, so it is fixed before the customer pays.
+  const [bankRef] = useState(newOrderRef);
+  const [senderName, setSenderName] = useState("");
+  const [transferRef, setTransferRef] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -91,6 +108,45 @@ export function CheckoutForm() {
     }
   }
 
+  async function confirmBank() {
+    if (!priced.shippingKnown) { setError("Please select your state so delivery can be added."); return; }
+    if (!whatsappBase) { setError("WhatsApp contact is not configured."); return; }
+    setBusy(true);
+    // Open the WhatsApp tab now, while the tap still counts, and fill it in once the order is saved.
+    const tab = window.open("about:blank", "_blank");
+    if (tab) tab.opener = null;
+    try {
+      const res = await fetch("/api/bank/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ref: bankRef, items: lines, customer: values, senderName, transferRef }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; ref?: string; amountNGN?: number; shippingNGN?: number; items?: { name: string; qty: number; lineNGN: number }[] };
+      if (!res.ok || !data.ref || !data.items || data.amountNGN === undefined) throw new Error(data.error ?? "We could not record your order. Please try again.");
+
+      const message = buildOrderMessage({
+        method: "bank",
+        reference: data.ref,
+        customer: cleanCustomer(values),
+        items: data.items.map((i) => ({ name: i.name, qty: i.qty, total: formatNGN(i.lineNGN) })),
+        delivery: formatNGN(data.shippingNGN ?? 0),
+        totalPaid: formatNGN(data.amountNGN),
+        senderName: senderName.trim(),
+        transferRef: transferRef.trim(),
+      });
+      const url = whatsappUrl(message, whatsappBase);
+      if (!url) throw new Error("WhatsApp contact is not configured.");
+      try { sessionStorage.setItem(USDC_WA_KEY, url); } catch { /* storage unavailable */ }
+      if (tab) tab.location.href = url;
+      clear();
+      router.push(`/checkout/complete?method=bank&ref=${encodeURIComponent(data.ref)}`);
+    } catch (e) {
+      tab?.close();
+      setError(e instanceof Error ? e.message : "We could not record your order. Please try again.");
+      setBusy(false);
+    }
+  }
+
   function confirmUsdc() {
     if (!priced.shippingKnown) { setError("Please select your state so delivery can be added."); return; }
     if (!chain || !token || !addressReady) { setError("Crypto payment is not available right now."); return; }
@@ -121,8 +177,9 @@ export function CheckoutForm() {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    track({ t: method === "naira" ? "co" : "usdc" });
+    track({ t: method === "naira" ? "co" : method === "bank" ? "bank" : "usdc" });
     if (method === "naira") void payNaira();
+    else if (method === "bank") void confirmBank();
     else confirmUsdc();
   }
 
@@ -153,7 +210,7 @@ export function CheckoutForm() {
 
         <section aria-labelledby="payment" className="flex flex-col gap-6">
           <h2 id="payment" className="eyebrow">Payment</h2>
-          <div className="grid gap-4 sm:grid-cols-3" role="radiogroup" aria-labelledby="payment">
+          <div className="grid gap-4 sm:grid-cols-2" role="radiogroup" aria-labelledby="payment">
             {methods.map((m) => (
               <label key={m.id} className={`cursor-pointer border p-5 transition-colors ${method === m.id ? "border-champagne-600 bg-ivory-100" : "border-champagne-300/60 hover:border-champagne-500"}`}>
                 <input type="radio" name="method" value={m.id} checked={method === m.id} onChange={() => { setMethod(m.id); setError(""); }} className="sr-only" />
@@ -162,6 +219,11 @@ export function CheckoutForm() {
               </label>
             ))}
           </div>
+
+          {method === "bank" && (
+            <BankPanel bank={bank} reference={bankRef} totalNGN={priced.totalNGN} shippingKnown={priced.shippingKnown} steps={checkoutConfig.bankSteps}
+              senderName={senderName} onSender={setSenderName} transferRef={transferRef} onTransferRef={setTransferRef} />
+          )}
 
           {token && (
             <div className="flex flex-col gap-6 border border-champagne-300/50 bg-ivory-100/60 p-6">
@@ -213,7 +275,7 @@ export function CheckoutForm() {
         <OrderTotals priced={priced} />
         {error && <p role="alert" className="mt-6 text-sm text-red-800">{error}</p>}
         <button type="submit" className="btn btn-primary mt-8 w-full" disabled={busy || (token !== null && !addressReady)}>
-          {busy ? "Please wait" : method === "naira" ? "Pay in Naira" : "Confirm on WhatsApp"}
+          {busy ? "Please wait" : method === "naira" ? "Pay in Naira" : method === "bank" ? "I have paid, confirm on WhatsApp" : "Confirm on WhatsApp"}
         </button>
         <p className="mt-5 text-center text-xs leading-relaxed text-muted">{site.shipping.note}</p>
       </aside>

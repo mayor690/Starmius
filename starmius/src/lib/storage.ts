@@ -45,6 +45,8 @@ const SCHEMAS = [
   "CREATE TABLE IF NOT EXISTS counters (day TEXT NOT NULL, kind TEXT NOT NULL, key TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, kind, key))",
   "CREATE TABLE IF NOT EXISTS visitors (day TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY (day, hash))",
   "CREATE TABLE IF NOT EXISTS orders (ref TEXT PRIMARY KEY, day TEXT NOT NULL, at TEXT NOT NULL, data TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS bank_orders (ref TEXT PRIMARY KEY, at TEXT NOT NULL, status TEXT NOT NULL, data TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS bank_refs (key TEXT PRIMARY KEY, order_ref TEXT NOT NULL)",
 ];
 
 /** The D1 database on Workers, or null when running with local files. Throws on Workers if the binding is missing. */

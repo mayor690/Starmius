@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { PHONE } from "@/data/contact";
 import { adminApi } from "@/lib/admin-api";
+import { BankEditor } from "./bank-editor";
 import { BannerEditor } from "./banner-editor";
 import { ShippingEditor } from "./shipping-editor";
 import { StorageCheck } from "./storage-check";
@@ -83,6 +84,8 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
       <StorageCheck />
 
       <BannerEditor value={s.banners} onChange={(banners) => setS({ ...s, banners })} />
+
+      <BankEditor value={s.bank} onChange={(bank) => setS({ ...s, bank })} />
 
       <UsdcEditor value={s.usdc} onChange={(usdc) => setS({ ...s, usdc })} />
 

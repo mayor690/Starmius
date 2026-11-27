@@ -40,7 +40,7 @@ export function StatsPanel() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card label="Sales (paid in Naira)" value={formatNGN(t.revenueNGN)} sub={`${n0(t.orders)} orders, average ${formatNGN(t.aovNGN)}`} />
+        <Card label="Sales (Naira)" value={formatNGN(t.revenueNGN)} sub={`${n0(t.orders)} orders, average ${formatNGN(t.aovNGN)}`} />
         <Card label="Ad income" value={formatNGN(t.adRevenueNGN)} sub="Amounts you entered on banners" />
         <Card label="Sales + ad income" value={formatNGN(t.revenueNGN + t.adRevenueNGN)} />
         <Card label="Orders per visitor" value={pct(t.conversion)} sub="Paid orders / visitors" />
@@ -88,6 +88,7 @@ export function StatsPanel() {
           <Ranked rows={[
             { key: "Page views", value: t.views }, { key: "Added to cart", value: r.funnel.atc },
             { key: "Started Naira payment", value: r.funnel.co }, { key: "Paid orders", value: t.orders },
+            { key: "Confirmed bank transfer on WhatsApp (not yet verified)", value: r.funnel.bank },
             { key: "Confirmed USDC or USDT on WhatsApp (not verified)", value: r.funnel.usdc },
           ]} />
         </Panel>
@@ -98,12 +99,12 @@ export function StatsPanel() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Sales by state"><Ranked empty="No paid orders in this period." rows={r.byState.map((s) => ({ key: `${s.state} (${s.orders})`, value: s.revenueNGN, label: formatNGN(s.revenueNGN) }))} /></Panel>
-        <Panel title="Recent paid orders">
+        <Panel title="Recent paid orders" note="Card payments and bank transfers you marked as received">
           {r.recentOrders.length ? (
             <ul className="divide-y divide-champagne-300/40 text-sm">
               {r.recentOrders.map((o) => (
                 <li key={o.ref} className="flex justify-between gap-4 py-2">
-                  <span><span className="block tabular-nums">{o.ref}</span><span className="text-xs text-muted">{new Date(o.at).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })} &middot; {[o.city, o.state].filter(Boolean).join(", ") || "Unknown"} &middot; {o.items} item{o.items === 1 ? "" : "s"}</span></span>
+                  <span><span className="block tabular-nums">{o.ref}</span><span className="text-xs text-muted">{new Date(o.at).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })} &middot; {[o.city, o.state].filter(Boolean).join(", ") || "Unknown"} &middot; {o.items} item{o.items === 1 ? "" : "s"}{o.method === "bank" ? " \u00b7 Bank transfer" : ""}</span></span>
                   <span className="font-display text-lg tabular-nums">{formatNGN(o.amountNGN)}</span>
                 </li>
               ))}
@@ -112,7 +113,7 @@ export function StatsPanel() {
         </Panel>
       </div>
       <p className="text-xs leading-relaxed text-muted">
-        Sales come only from payments Paystack has confirmed. Add https://YOUR-SITE/api/paystack/webhook in your Paystack dashboard so every payment is counted, even when a customer closes the page. USDC payments are confirmed by hand, so they are not in the sales total.
+        Sales come from payments Paystack has confirmed and bank transfers you marked as received in the Bank transfers tab. Add https://YOUR-SITE/api/paystack/webhook in your Paystack dashboard so every payment is counted, even when a customer closes the page. USDC and USDT payments are confirmed by hand, so they are not in the sales total.
       </p>
     </div>
   );

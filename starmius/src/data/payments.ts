@@ -18,7 +18,7 @@ export interface CryptoChain {
 }
 
 export interface PaymentMethod {
-  id: "naira" | "usdc" | "usdt";
+  id: "naira" | "bank" | "usdc" | "usdt";
   label: string;
   description: string;
   enabled: boolean;
@@ -26,7 +26,8 @@ export interface PaymentMethod {
 
 export const payments = {
   methods: [
-    { id: "naira", label: "Pay in Naira", description: "Card, bank transfer or USSD", enabled: true },
+    { id: "naira", label: "Pay in Naira", description: "Card or USSD, confirmed instantly", enabled: true },
+    { id: "bank", label: "Bank transfer", description: "Transfer from any bank app, then confirm on WhatsApp", enabled: true },
     { id: "usdc", label: "Pay with USDC", description: "Send USDC on your preferred chain", enabled: true },
     { id: "usdt", label: "Pay with USDT", description: "Send USDT on your preferred chain", enabled: true },
   ] satisfies PaymentMethod[],

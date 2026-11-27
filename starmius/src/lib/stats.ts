@@ -26,7 +26,7 @@ interface Day {
   refs: Record<string, number>;
   devices: Record<string, number>;
   banners: Record<string, BannerDay>;
-  funnel: { atc: number; co: number; usdc: number };
+  funnel: { atc: number; co: number; usdc: number; bank: number };
 }
 export interface OrderRecord {
   ref: string;
@@ -37,10 +37,12 @@ export interface OrderRecord {
   state: string;
   city: string;
   items: { slug: string; name: string; qty: number; lineNGN: number }[];
+  /** How it was paid. Older records have no value and were all Paystack. */
+  method?: "paystack" | "bank";
 }
 interface StatsFile { days: Record<string, Day>; orders: OrderRecord[] }
 
-const emptyDay = (): Day => ({ views: 0, visitors: [], paths: {}, refs: {}, devices: {}, banners: {}, funnel: { atc: 0, co: 0, usdc: 0 } });
+const emptyDay = (): Day => ({ views: 0, visitors: [], paths: {}, refs: {}, devices: {}, banners: {}, funnel: { atc: 0, co: 0, usdc: 0, bank: 0 } });
 
 async function read(): Promise<StatsFile> {
   try {
@@ -80,11 +82,11 @@ interface Ops {
   paths: string[]; refs: string[]; devices: string[];
   visitor?: string;
   banners: { id: string; kind: "imp" | "clk" }[];
-  funnel: { atc: number; co: number; usdc: number };
+  funnel: { atc: number; co: number; usdc: number; bank: number };
 }
 
 function normalise(events: Record<string, unknown>[], known: Set<string>, vid: string, day: string): Ops {
-  const ops: Ops = { paths: [], refs: [], devices: [], banners: [], funnel: { atc: 0, co: 0, usdc: 0 } };
+  const ops: Ops = { paths: [], refs: [], devices: [], banners: [], funnel: { atc: 0, co: 0, usdc: 0, bank: 0 } };
   for (const e of events) {
     switch (e.t) {
       case "pv": {
@@ -106,6 +108,7 @@ function normalise(events: Record<string, unknown>[], known: Set<string>, vid: s
       case "atc": ops.funnel.atc += 1; break;
       case "co": ops.funnel.co += 1; break;
       case "usdc": ops.funnel.usdc += 1; break;
+      case "bank": ops.funnel.bank += 1; break;
     }
   }
   return ops;
@@ -134,7 +137,7 @@ export async function recordEvents(body: TrackBody): Promise<void> {
       const x = (d.banners[b.id] ??= { imp: 0, clk: 0 });
       x[b.kind] += 1;
     }
-    d.funnel.atc += ops.funnel.atc; d.funnel.co += ops.funnel.co; d.funnel.usdc += ops.funnel.usdc;
+    d.funnel.atc += ops.funnel.atc; d.funnel.co += ops.funnel.co; d.funnel.usdc += ops.funnel.usdc; d.funnel.bank = (d.funnel.bank ?? 0) + ops.funnel.bank;
     await write(f);
   });
 }
@@ -152,7 +155,7 @@ async function recordEventsD1(db: D1Database, day: string, ops: Ops): Promise<vo
   ops.refs.forEach((r) => add("ref", r));
   ops.devices.forEach((v) => add("device", v));
   ops.banners.forEach((b) => add(b.kind, b.id));
-  add("funnel", "atc", ops.funnel.atc); add("funnel", "co", ops.funnel.co); add("funnel", "usdc", ops.funnel.usdc);
+  add("funnel", "atc", ops.funnel.atc); add("funnel", "co", ops.funnel.co); add("funnel", "usdc", ops.funnel.usdc); add("funnel", "bank", ops.funnel.bank);
 
   // Stop one day from collecting unlimited distinct pages.
   if (ops.paths.length) {
@@ -173,13 +176,13 @@ async function recordEventsD1(db: D1Database, day: string, ops: Ops): Promise<vo
 }
 
 /** Records one verified Paystack payment. Safe to call many times for the same reference. */
-export async function recordPaidOrder(o: { ref: string; amountNGN: number; shippingNGN: number; state?: string; city?: string; items: { slug: string; qty: number }[]; at?: string }): Promise<void> {
+export async function recordPaidOrder(o: { ref: string; amountNGN: number; shippingNGN: number; state?: string; city?: string; items: { slug: string; qty: number }[]; at?: string; method?: "paystack" | "bank" }): Promise<void> {
   if (!o.ref || !(o.amountNGN > 0)) return;
   const [products, settings] = await Promise.all([getAllProducts(), getSettings()]);
   const priced = priceCart(o.items, products, settings.shipping, o.state, o.city);
   const at = o.at && !Number.isNaN(Date.parse(o.at)) ? new Date(o.at).toISOString() : new Date().toISOString();
   const record: OrderRecord = {
-    ref: o.ref, at, day: lagosToday(new Date(at)), amountNGN: Math.round(o.amountNGN), shippingNGN: Math.round(o.shippingNGN),
+    ref: o.ref, at, method: o.method ?? "paystack", day: lagosToday(new Date(at)), amountNGN: Math.round(o.amountNGN), shippingNGN: Math.round(o.shippingNGN),
     state: (o.state ?? "").slice(0, 40), city: (o.city ?? "").slice(0, 80),
     items: priced.items.map((i) => ({ slug: i.product.slug, name: i.product.name, qty: i.qty, lineNGN: i.lineNGN })),
   };
@@ -202,7 +205,7 @@ export async function recordPaidOrder(o: { ref: string; amountNGN: number; shipp
 interface DayView {
   views: number; visitors: number;
   paths: Record<string, number>; refs: Record<string, number>; devices: Record<string, number>;
-  banners: Record<string, BannerDay>; funnel: { atc: number; co: number; usdc: number };
+  banners: Record<string, BannerDay>; funnel: { atc: number; co: number; usdc: number; bank: number };
 }
 interface Loaded { days: Record<string, DayView>; orders: OrderRecord[] }
 
@@ -220,7 +223,7 @@ async function load(from: string, to: string): Promise<Loaded> {
     db.prepare("SELECT data FROM orders WHERE day >= ? AND day <= ?").bind(from, to).all<{ data: string }>(),
   ]);
   const days: Record<string, DayView> = {};
-  const day = (k: string) => (days[k] ??= { views: 0, visitors: 0, paths: {}, refs: {}, devices: {}, banners: {}, funnel: { atc: 0, co: 0, usdc: 0 } });
+  const day = (k: string) => (days[k] ??= { views: 0, visitors: 0, paths: {}, refs: {}, devices: {}, banners: {}, funnel: { atc: 0, co: 0, usdc: 0, bank: 0 } });
   for (const r of counters.results ?? []) {
     const d = day(r.day);
     if (r.kind === "views") d.views += r.n;
@@ -228,7 +231,7 @@ async function load(from: string, to: string): Promise<Loaded> {
     else if (r.kind === "ref") d.refs[r.key] = r.n;
     else if (r.kind === "device") d.devices[r.key] = r.n;
     else if (r.kind === "imp" || r.kind === "clk") (d.banners[r.key] ??= { imp: 0, clk: 0 })[r.kind] = r.n;
-    else if (r.kind === "funnel" && (r.key === "atc" || r.key === "co" || r.key === "usdc")) d.funnel[r.key] = r.n;
+    else if (r.kind === "funnel" && (r.key === "atc" || r.key === "co" || r.key === "usdc" || r.key === "bank")) d.funnel[r.key] = r.n;
   }
   for (const v of visitors.results ?? []) day(v.day).visitors = v.c;
   return { days, orders: (orders.results ?? []).map((o) => JSON.parse(o.data) as OrderRecord) };
@@ -250,7 +253,7 @@ export async function getReport(rangeDays: number) {
   const refs: Record<string, number> = {};
   const devices: Record<string, number> = {};
   const adDay: Record<string, BannerDay> = {};
-  const funnel = { atc: 0, co: 0, usdc: 0 };
+  const funnel = { atc: 0, co: 0, usdc: 0, bank: 0 };
   let views = 0;
   let visitors = 0;
 
@@ -267,7 +270,7 @@ export async function getReport(rangeDays: number) {
       const a = (adDay[k] ??= { imp: 0, clk: 0 });
       a.imp += v.imp; a.clk += v.clk;
     }
-    funnel.atc += d?.funnel.atc ?? 0; funnel.co += d?.funnel.co ?? 0; funnel.usdc += d?.funnel.usdc ?? 0;
+    funnel.atc += d?.funnel.atc ?? 0; funnel.co += d?.funnel.co ?? 0; funnel.usdc += d?.funnel.usdc ?? 0; funnel.bank += d?.funnel.bank ?? 0;
     return { day, views: d?.views ?? 0, visitors: d?.visitors ?? 0, orders: dayOrders.length, revenueNGN: dayOrders.reduce((s, o) => s + o.amountNGN, 0) };
   });
 
@@ -310,6 +313,6 @@ export async function getReport(rangeDays: number) {
     topPages: sortCounts(paths, 10), referrers: sortCounts(refs, 8), devices: sortCounts(devices, 3),
     topProducts: Object.entries(products).map(([slug, p]) => ({ slug, ...p })).sort((a, b) => b.revenueNGN - a.revenueNGN).slice(0, 8),
     byState: Object.entries(byState).map(([state, s]) => ({ state, ...s })).sort((a, b) => b.revenueNGN - a.revenueNGN).slice(0, 8),
-    recentOrders: [...orders].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10).map((o) => ({ ref: o.ref, at: o.at, amountNGN: o.amountNGN, state: o.state, city: o.city, items: o.items.reduce((s, i) => s + i.qty, 0) })),
+    recentOrders: [...orders].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10).map((o) => ({ ref: o.ref, at: o.at, amountNGN: o.amountNGN, state: o.state, city: o.city, method: o.method ?? "paystack", items: o.items.reduce((s, i) => s + i.qty, 0) })),
   };
 }

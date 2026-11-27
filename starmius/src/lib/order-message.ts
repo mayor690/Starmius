@@ -1,6 +1,6 @@
 import { formatNGN, formatToken } from "./format";
 
-/** One WhatsApp format for every paid order (Naira, USDC and USDT). */
+/** One WhatsApp format for every order (Naira, bank transfer, USDC and USDT). */
 
 export interface OrderCustomer {
   fullName: string;
@@ -20,7 +20,7 @@ export interface OrderMessageItem {
 }
 
 export interface OrderMessageInput {
-  method: "naira" | "crypto";
+  method: "naira" | "bank" | "crypto";
   reference: string;
   customer: OrderCustomer;
   items: OrderMessageItem[];
@@ -28,6 +28,9 @@ export interface OrderMessageInput {
   delivery?: string;
   /** Already formatted amount the customer paid. */
   totalPaid: string;
+  /** Bank transfer only. */
+  senderName?: string;
+  transferRef?: string;
   /** Crypto only: the token paid, e.g. USDC or USDT. */
   token?: string;
   /** Crypto only. */
@@ -54,17 +57,22 @@ export function cleanCustomer(raw: unknown): OrderCustomer {
 export function buildOrderMessage(o: OrderMessageInput): string {
   const c = o.customer;
   const dash = (v: string) => v || "-";
-  const paidVia = o.method === "naira" ? "Naira (Paystack)" : `${o.token ?? "Crypto"}${o.chain ? ` on ${o.chain}` : ""}`;
+  const paidVia = o.method === "naira" ? "Naira (Paystack)" : o.method === "bank" ? "Bank transfer" : `${o.token ?? "Crypto"}${o.chain ? ` on ${o.chain}` : ""}`;
+  const status = o.method === "naira" ? "Payment status: PAID" : o.method === "bank" ? "Payment status: BANK TRANSFER sent, please check your bank alert" : `Payment status: ${o.token ?? "crypto"} sent, please verify on chain`;
 
   const lines: string[] = [
     "*NEW STARMIUS ORDER*",
-    o.method === "naira" ? "Payment status: PAID" : `Payment status: ${o.token ?? "crypto"} sent, please verify on chain`,
+    status,
     "",
     "*Order*",
     `Reference: ${o.reference}`,
     `Paid via: ${paidVia}`,
   ];
   if (o.method === "crypto" && o.hash) lines.push(`Transaction: ${o.hash}`);
+  if (o.method === "bank") {
+    if (o.senderName) lines.push(`Paid from account: ${o.senderName}`);
+    if (o.transferRef) lines.push(`Transfer reference: ${o.transferRef}`);
+  }
   lines.push(
     "",
     "*Customer*",
